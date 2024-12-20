@@ -72,35 +72,59 @@ tt *mean(tt* input, int axis) {
   return tt_mul(summed, div);
 }
 
-tt *log_softmax(tt* input, int axis) {
-  tt* exp = tt_exp(input);
-  tt* sum_exp = tt_sum(exp, axis);
-  tt* log_sum_exp = tt_log(sum_exp);
-  tt* expand_log_sum_exp = tt_expand(log_sum_exp, axis, input->view->shape->items[axis]);// would be fixed with broadcasting
-  return tt_sub(input, expand_log_sum_exp);
+// tt *log_softmax(tt* input, int axis) {
+  // tt* exp = tt_exp(input);
+  // tt* sum_exp = tt_sum(exp, axis);
+  // tt* log_sum_exp = tt_log(sum_exp);
+  // tt* expand_log_sum_exp = tt_expand(log_sum_exp, axis, input->view->shape->items[axis]);// would be fixed with broadcasting
+  // return tt_sub(input, expand_log_sum_exp);
+// }
+
+// torch gives out if out of bounds, tinygrad doesnt.
+// we give out.
+tt *sparse_categorical_cross_entropy(tt* input, tt* Y) {
+  assert(Y->view->shape->size == 1);
+  assert(input->view->shape->size == 2);
+  assert(Y->view->shape->items[0] == input->view->shape->items[0]);
+
+  tt* one_hot_y = tt_zeros(input->view->shape, false);
+  for (int i = 0; i < Y->view->shape->items[0]; i++) {
+    int position = (int)Y->data->buffer[i];
+    assert(position >= 0 && position < input->view->shape->items[1]);
+    one_hot_y->data->buffer[i * input->view->shape->items[1] + position] = 1;
+  }
+
+  tt* guesses = tt_mul(input, one_hot_y);
+  tt* no_zeros = tt_sum(guesses, 1);
+
+  tt* exp_all = tt_exp(input);
+  tt* sum_all = tt_sum(exp_all, 1);
+  tt* log_sum_all = tt_log(sum_all);
+
+  tt* sub = tt_sub(log_sum_all, no_zeros);
+  return mean(sub, -1);
 }
 
 int main(void) {
   srand(time(NULL));
 
-  ttuple* shape = ttuple_build(4, 1, 1, 4, 4);
-  tt* input = tt_linspace(shape, 1, 16, 1*1*4*4, true);
+  ttuple* input_shape = ttuple_build(2, 3, 3);
+  float input_buffer[9] = {5.0, -5.0, -5.0, 15, 35, 40, -19, 0.001, 2};
+  tt* input = tt_from_buffer(input_shape, &input_buffer[0], true);
 
-  tt* other = tt_fill(shape, 3.5, true);
+  ttuple* target_shape = ttuple_build(1, 3);
+  float target_buffer[3] = {1, 2, 0};
+  tt* target = tt_from_buffer(target_shape, &target_buffer[0], false);
 
-  int axis = 3;
-  
-  tt* lsm = log_softmax(input, 3);
+  tt* loss = sparse_categorical_cross_entropy(input, target);
 
-  tt* sum = tt_sum(lsm, -1);
-
-  tgraph* comp_graph = tgraph_build(sum);
+  tgraph* comp_graph = tgraph_build(loss);
   tgraph_zeroed(comp_graph);
   tgraph_backprop(comp_graph);
 
 
-  tt_print(sum, true, true);
-  tt_print(lsm, true, true);
-  tt_print(input, true, true);
+  tt_print(target, false, false);
+  tt_print(input, false, true);
+  tt_print(loss, false, true);
 
 }
