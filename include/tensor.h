@@ -141,7 +141,4 @@ toptimizer *toptimizer_build(tt **params, uint64_t size,
                              void (*step)(toptimizer *));
 void toptimizer_free(toptimizer *topt);
 
-// optimization steps
-// void tsgd(struct toptimizer* optim);
-//  TODO: adam
 #endif

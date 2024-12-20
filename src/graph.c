@@ -79,3 +79,6 @@ void tgraph_print(tgraph* net, bool no_buffer, bool show_grads) {
         if (i < net->size-1) printf(" | \n");
     }
 }
+
+// gather_params
+// save_tensors

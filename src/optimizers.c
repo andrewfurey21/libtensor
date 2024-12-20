@@ -1,9 +1,6 @@
 #include "../include/tensor.h"
 #include "assert.h"
 
-//  TODO:
-//  implement adam
-
 void tsgd(toptimizer *optim) { // maybe just opt_params and net.
   for (uint64_t i = 0; i < optim->net->size; i++) {
     tt *t = optim->net->nodes[i];
@@ -38,5 +35,3 @@ void toptimizer_free(toptimizer *topt) {
   free(topt); // dont free net
 }
 
-//  when gather params, get rid of any nonleaf,nontraining nodes.
-// void toptimizer_gather_params()

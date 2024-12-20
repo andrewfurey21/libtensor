@@ -19,8 +19,7 @@ My approach was building a small set of base operations that can be used to buil
     - [x] matmul/dot (indirectly, using reshape, expand, mul and sum)
     - [x] max pool
     - [x] convolutions
-    - [ ] batch norm
-    - [ ] sparse categorical cross entropy
+    - [x] sparse categorical cross entropy
 - [ ] sgd optimizer
 - [ ] import/export weights
 
@@ -68,8 +67,12 @@ Convolutions are implemented as their on kernel for the moment.
 ## future ideas
 
 - broadcasting, keepdim, proper views, strides, proper storage abstraction (like numpy)
+- better viz
 - could totally do a refactor, might be nice to have a context like ggml. make it so that memory doesnt get allocated when running.
-- could do permute+pad op, then redo maxpools/convs
+- coreops.c, ops.c, storage.c, graph.c, nn.c (neural net specific likes optimizers), extra (tuples etc)
+- need graph.c?
+- could do permute+pad op, then redo maxpools/convs.
+- more ops: batchnorm, attention, etc.
 - different backends (opencl/vulkan, cuda, metal, avx/sse, triton, rocm, tenstorrent)
 - more example models (yolo, gpt, sam etc)
 - choose different types (double, f16, bfloat, mx-compliant)
