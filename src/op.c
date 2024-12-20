@@ -15,6 +15,7 @@ size_t top_radix(enum top op) {
   case SQRT:
   case EXP:
   case LOG:
+  case RECIPROCAL:
     return 1;
   case ADD:
   case MUL:
@@ -55,6 +56,9 @@ void print_op_string(enum top op) {
     return;
   case MUL:
     printf("MUL\n");
+    return;
+  case RECIPROCAL:
+    printf("RECIPROCAL\n");
     return;
   case MAX_POOL_2D:
     printf("MAX POOL 2D\n");

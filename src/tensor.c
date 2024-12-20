@@ -1277,3 +1277,37 @@ tt *tt_log(tt *input) {
   }
   return t;
 }
+
+void _reciprocal_backwards(tt *self) {
+  if (self->parents[0]->requires_grad) {
+    // - 1 / x^2
+    tt *grads_neg = tt_neg(self->grads);
+    tt *grads_mul = tt_mul(grads_neg, self);
+    tt *grads_square = tt_mul(grads_mul, self);
+    tt *acc_grads_1 = tt_add(grads_square, self->parents[0]->grads);
+    tt_free(self->parents[0]->grads);
+    tt_free(grads_neg);
+    tt_free(grads_mul);
+    tt_free(grads_square);
+    self->parents[0]->grads = acc_grads_1;
+  }
+}
+
+tt *tt_reciprocal(tt *a) {
+  ttuple *copy = ttuple_copy(a->view->shape);
+
+  tt **parents = NULL;
+  if (a->requires_grad) {
+    parents = (tt **)malloc(top_radix(RECIPROCAL) * sizeof(tt *));
+    parents[0] = a;
+  }
+
+  tt *t = tt_zeros(copy, a->requires_grad);
+  t->parents = parents;
+  t->op = RECIPROCAL;
+  t->_backwards = &_reciprocal_backwards;
+  for (uint64_t i = 0; i < a->data->size; i++) {
+    t->data->buffer[i] = 1.0f / a->data->buffer[i];
+  }
+  return t;
+}

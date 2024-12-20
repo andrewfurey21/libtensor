@@ -17,6 +17,7 @@ enum top { // need enough for: conv, batchnorm, maxpool, linear
   ADD,
   SUB,
   MUL,
+  RECIPROCAL,
   MAX_POOL_2D,
   NEG,
   CONV_2D,
@@ -108,6 +109,7 @@ tt* tt_square(tt* input);
 tt* tt_sqrt(tt* input);
 tt* tt_exp(tt* input);
 tt* tt_log(tt* input);
+tt *tt_reciprocal(tt *a);
 
 // computational graph
 typedef struct {
