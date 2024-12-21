@@ -73,8 +73,8 @@ void load_mnist_buffer(const char *image, float *input, float *output,
   }
 }
 
-void load_mnist_batch(tt **input_batch, tt **output_batch, const char *file_name,
-                      int file_length, int batch_size) {
+void load_mnist_batch(tt **input_batch, tt **output_batch,
+                      const char *file_name, int file_length, int batch_size) {
   ttuple *input_shape = ttuple_build(4, batch_size, 1, 28, 28);
   ttuple *output_shape = ttuple_build(1, batch_size);
 
@@ -84,7 +84,8 @@ void load_mnist_batch(tt **input_batch, tt **output_batch, const char *file_name
   for (int i = 0; i < batch_size; i++) {
     int line = randi(1, file_length);
     char *image = read_mnist_image(file_name, line);
-    load_mnist_buffer(image, input, output, i * ttuple_prod(input_shape)/batch_size);
+    load_mnist_buffer(image, input, output,
+                      i * ttuple_prod(input_shape) / batch_size);
     free(image);
   }
 
@@ -102,14 +103,16 @@ void display_mnist_image(tt *image) {
   ttuple *index = ttuple_zeros(4);
   for (int b = 0; b < image->view->shape->items[0]; b++) {
     index->items[0] = b;
-    printf("Batch #%d:\n", b);
+    printf("Batch #%d:\n", b+1);
     for (int h = 0; h < image->view->shape->items[2]; h++) {
       index->items[2] = h;
       for (int w = 0; w < image->view->shape->items[3]; w++) {
         index->items[3] = w;
         float value = tt_getindex(image, index);
-        if (value > 45)
+        if (value > 150) {
           printf("MM");
+        } else if (value > 45)
+          printf("..");
         else
           printf("  ");
       }
@@ -226,7 +229,8 @@ int main(void) {
 
   int batch_size = 16;
 
-  load_mnist_batch(&input_batch, &output_batch, "data/mnist_test.csv", 10000, batch_size);
+  load_mnist_batch(&input_batch, &output_batch, "data/mnist_test.csv", 10000,
+                   batch_size);
   display_mnist_image(input_batch);
 
   // double check sgd/convs works

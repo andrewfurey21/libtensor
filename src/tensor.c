@@ -144,11 +144,6 @@ tt *tt_ones(ttuple *s, bool requires_grad) {
 
 tt *tt_from_buffer(ttuple *s, float *buffer, bool requires_grad) {
   uint64_t size = ttuple_prod(s);
-
-
-  // for (int i = 0; i < 1* 28 * 28; i++) {
-  //   printf("%f,", buffer[i]);
-  // }
   tstorage *data = tstorage_from_buffer(size, buffer);
 
   tt *ret = (tt *)malloc(sizeof(tt));
@@ -173,7 +168,6 @@ tt *tt_from_buffer(ttuple *s, float *buffer, bool requires_grad) {
   ret->requires_grad = requires_grad;
   ret->_backwards = NULL;
   ret->grads = grads;
-  
   return ret;
 }
 
