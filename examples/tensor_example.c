@@ -47,27 +47,25 @@ char *read_mnist_image(const char *file_name, int line_number) {
 }
 
 void load_mnist_buffer(const char *image, float *input, float *output,
-                       int index) {
+                       int input_index, int output_index) {
   int len = strlen(image);
   float output_value = (float)(image[0] - '0');
-  output[index] = output_value;
+  output[output_index] = output_value;
 
   int image_index = 0;
   int buffer_index = 0;
   const int offset = 2;
 
-  int count = 0;
   while (image_index + offset < len) {
-    count++;
     float value = 0;
     char current = image[image_index + offset];
     while (current <= '9' && current >= '0') {
       value *= 10;
-      value += (float)(image[image_index + offset] - '0');
+      value += (float)(current - '0');
       image_index++;
       current = image[image_index + offset];
     }
-    input[index + buffer_index] = value;
+    input[input_index + buffer_index] = value;
     image_index++;
     buffer_index++;
   }
@@ -85,7 +83,7 @@ void load_mnist_batch(tt **input_batch, tt **output_batch,
     int line = randi(1, file_length);
     char *image = read_mnist_image(file_name, line);
     load_mnist_buffer(image, input, output,
-                      i * ttuple_prod(input_shape) / batch_size);
+                      i * ttuple_prod(input_shape) / batch_size, i);
     free(image);
   }
 

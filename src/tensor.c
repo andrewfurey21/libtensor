@@ -281,9 +281,10 @@ void tt_print(tt *t, bool no_buffer, bool show_grads) {
   ttuple_print(t->view->shape);
   if (t->requires_grad) {
     print_op_string(t->op);
-  } else {
-    printf("NO GRADS\n");
   }
+  // else {
+  //   printf("NO GRADS\n");
+  // }
   if (!no_buffer) {
     printf("values: [ ");
     for (int i = 0; i < t->data->size; i++) {
