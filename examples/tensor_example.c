@@ -1,11 +1,16 @@
-// model based off of https://machinelearningmastery.com/how-to-develop-a-convolutional-neural-network-from-scratch-for-mnist-handwritten-digit-classification/
+// model based off of
+// https://machinelearningmastery.com/how-to-develop-a-convolutional-neural-network-from-scratch-for-mnist-handwritten-digit-classification/
 
 #include "../include/tensor.h"
 #include "assert.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "string.h"
+#include <math.h>
 #include <stdint.h>
 #include <time.h>
+
+#define MNIST_IMAGE_SIZE 28
 
 // TODO:
 // check summing with (2, 1, 1) or something with ones get name of
@@ -13,6 +18,106 @@
 // tinygrad/pytorch impl variable shapes etc. add to hl_ops or something. need
 // to free stuff in function if not being used later. use getenv for batchsize,
 // learning_rate, etc other params. add training param to each function
+
+int randi(int min, int max) {
+  int value = roundf((float)rand() / (float)RAND_MAX * (max - min) + min);
+  return value;
+}
+
+char *read_mnist_image(const char *file_name, int line_number) {
+  FILE *stream = fopen(file_name, "r");
+  assert(stream != NULL && "Couldn't read file");
+  char *line = NULL;
+  size_t len = 0;
+  ssize_t nread;
+
+  int current_line = 0;
+
+  while ((nread = getline(&line, &len, stream)) != -1) {
+    current_line++;
+
+    if (current_line == line_number) {
+      fclose(stream);
+      return line;
+    }
+  }
+  fclose(stream);
+  free(line);
+  return NULL;
+}
+
+void load_mnist_buffer(const char *image, float *input, float *output,
+                       int index) {
+  int len = strlen(image);
+  float output_value = (float)(image[0] - '0');
+  output[index] = output_value;
+
+  int image_index = 0;
+  int buffer_index = 0;
+  const int offset = 2;
+
+  int count = 0;
+  while (image_index + offset < len) {
+    count++;
+    float value = 0;
+    char current = image[image_index + offset];
+    while (current <= '9' && current >= '0') {
+      value *= 10;
+      value += (float)(image[image_index + offset] - '0');
+      image_index++;
+      current = image[image_index + offset];
+    }
+    input[index + buffer_index] = value;
+    image_index++;
+    buffer_index++;
+  }
+}
+
+void load_mnist_batch(tt **input_batch, tt **output_batch, const char *file_name,
+                      int file_length, int batch_size) {
+  ttuple *input_shape = ttuple_build(4, batch_size, 1, 28, 28);
+  ttuple *output_shape = ttuple_build(1, batch_size);
+
+  float *input = (float *)malloc(sizeof(float) * batch_size * 1 * 28 * 28);
+  float *output = (float *)malloc(sizeof(float) * batch_size);
+
+  for (int i = 0; i < batch_size; i++) {
+    int line = randi(1, file_length);
+    char *image = read_mnist_image(file_name, line);
+    load_mnist_buffer(image, input, output, i * ttuple_prod(input_shape)/batch_size);
+    free(image);
+  }
+
+  *input_batch = tt_from_buffer(input_shape, input, false);
+  *output_batch = tt_from_buffer(output_shape, output, false);
+
+  ttuple_free(input_shape);
+  ttuple_free(output_shape);
+
+  free(input);
+  free(output);
+}
+
+void display_mnist_image(tt *image) {
+  ttuple *index = ttuple_zeros(4);
+  for (int b = 0; b < image->view->shape->items[0]; b++) {
+    index->items[0] = b;
+    printf("Batch #%d:\n", b);
+    for (int h = 0; h < image->view->shape->items[2]; h++) {
+      index->items[2] = h;
+      for (int w = 0; w < image->view->shape->items[3]; w++) {
+        index->items[3] = w;
+        float value = tt_getindex(image, index);
+        if (value > 45)
+          printf("MM");
+        else
+          printf("  ");
+      }
+      printf("\n");
+    }
+  }
+  ttuple_free(index);
+}
 
 // 2d matmul
 tt *linear_layer(tt *input, tt *weights) {
@@ -116,7 +221,14 @@ tt *sparse_categorical_cross_entropy(tt *input, tt *Y) {
 int main(void) {
   srand(time(NULL));
 
-  // code to load mnist data set
+  tt *input_batch = NULL;
+  tt *output_batch = NULL;
+
+  int batch_size = 16;
+
+  load_mnist_batch(&input_batch, &output_batch, "data/mnist_test.csv", 10000, batch_size);
+  display_mnist_image(input_batch);
+
   // double check sgd/convs works
   // mnist model
   // conv (32, 3x3)
@@ -130,5 +242,4 @@ int main(void) {
   // loss: categorical cross entropy
   // save tensor values
   // test accuracy
-
 }

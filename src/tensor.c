@@ -41,7 +41,7 @@ tstorage *tstorage_from_buffer(uint64_t size, float *buffer) {
   // TODO: check if this works
   //
   // uint64_t size = malloc_usable_size(buffer)/sizeof(float);
-  float *buffer_copy = (float *)calloc(size, sizeof(float));
+  float *buffer_copy = (float *)calloc(size, sizeof(float));//memcpy
   for (int i = 0; i < size; i++) {
     buffer_copy[i] = buffer[i];
   }
@@ -144,6 +144,11 @@ tt *tt_ones(ttuple *s, bool requires_grad) {
 
 tt *tt_from_buffer(ttuple *s, float *buffer, bool requires_grad) {
   uint64_t size = ttuple_prod(s);
+
+
+  // for (int i = 0; i < 1* 28 * 28; i++) {
+  //   printf("%f,", buffer[i]);
+  // }
   tstorage *data = tstorage_from_buffer(size, buffer);
 
   tt *ret = (tt *)malloc(sizeof(tt));
@@ -168,6 +173,7 @@ tt *tt_from_buffer(ttuple *s, float *buffer, bool requires_grad) {
   ret->requires_grad = requires_grad;
   ret->_backwards = NULL;
   ret->grads = grads;
+  
   return ret;
 }
 
