@@ -2,4 +2,5 @@
 obj/*
 build/*
 *.py
+data/*
 

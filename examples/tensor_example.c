@@ -8,8 +8,7 @@
 #include <time.h>
 
 // TODO:
-// encapsulating ops with functions is broken, i dont think gradients flow
-// correcly. check summing with (2, 1, 1) or something with ones get name of
+// check summing with (2, 1, 1) or something with ones get name of
 // linspace/arange correct get this working correctly, compare with proper
 // tinygrad/pytorch impl variable shapes etc. add to hl_ops or something. need
 // to free stuff in function if not being used later. use getenv for batchsize,
@@ -114,79 +113,22 @@ tt *sparse_categorical_cross_entropy(tt *input, tt *Y) {
   return mean(sub, -1);
 }
 
-// gamma = scale, beta = shift
-// like pytorch, expects 4d input, 4d output
-// batch axis: 0
-tt *batch_norm_2d(tt *input, tt *gamma, tt *beta, tt *running_mean,
-                  tt *running_var, float eps, bool update_stats) {
-  assert(input->view->shape->size == 4);
-
-  tt *eps_tensor = tt_fill(input->view->shape, eps, false);
-
-  tt *current_mean = mean(input, 0);
-  tt *expand_mean =
-      tt_expand(current_mean, 0,
-                input->view->shape->items[0]); // really need broadcasting
-  tt *current_var = variance(input, 0, 1);
-  tt *expand_var = tt_expand(current_var, 0, input->view->shape->items[0]);
-
-  tt *input_sub_mean = tt_sub(input, expand_mean);
-  tt *plus_eps = tt_add(expand_var, eps_tensor);
-  tt *sqrt = tt_sqrt(plus_eps);
-  tt *recip = tt_reciprocal(sqrt);
-  tt *x_hat = tt_mul(input_sub_mean, recip);
-
-  tt *shift = tt_mul(gamma, x_hat);
-  tt *scale = tt_add(beta, shift);
-
-  // need to fix grads within grads bug, cuz memory leaks will be a bitch
-  if (update_stats) {
-    // update running var and running mean
-    tt *original = tt_fill(input->view->shape, 0.99, false);
-    tt *current = tt_fill(input->view->shape, 0.01, false);
-    tt *original_rmean = tt_mul(running_mean, original);
-    tt *current_rmean = tt_mul(expand_mean, current);
-    tt_free(running_mean);
-    running_mean = tt_add(original_rmean, current_rmean);
-
-    tt *original_rvar = tt_mul(running_var, original);
-    tt *current_rvar = tt_mul(expand_var, current);
-    tt_free(running_var);
-    running_mean = tt_add(original_rvar, current_rvar);
-
-    tt_free(original_rvar);
-    tt_free(current_rvar);
-
-    tt_free(original_rmean);
-    tt_free(current_rmean);
-
-    tt_free(original);
-    tt_free(current);
-  }
-
-  return scale;
-}
-
 int main(void) {
   srand(time(NULL));
 
-  ttuple *input_shape = ttuple_build(4, 2, 1, 4, 4);
-  tt *input = tt_linspace(input_shape, 1, 2 * 1 * 4 * 4, 2 * 1 * 4 * 4, true);
+  // code to load mnist data set
+  // double check sgd/convs works
+  // mnist model
+  // conv (32, 3x3)
+  // relu
+  // maxpool (2, 2)
+  // flatten
+  // linear layer (100)
+  // relu
+  // linear layer (10)
+  // softmax
+  // loss: categorical cross entropy
+  // save tensor values
+  // test accuracy
 
-  tt *gamma = tt_ones(input_shape, true);
-  tt *beta = tt_zeros(input_shape, true);
-
-  tt *running_mean = tt_zeros(input_shape, true);
-  tt *running_var = tt_ones(input_shape, true);
-
-  tt* output = batch_norm_2d(input, gamma, beta, running_mean, running_var, 0.00001, true);
-  
-  tt *sum = tt_sum(output, -1);
-
-  tgraph *comp_graph = tgraph_build(sum);
-  tgraph_zeroed(comp_graph);
-  tgraph_backprop(comp_graph);
-
-  tt_print(input, false, true);
-  tt_print(output, false, true);
 }
