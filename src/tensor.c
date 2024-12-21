@@ -41,7 +41,7 @@ tstorage *tstorage_from_buffer(uint64_t size, float *buffer) {
   // TODO: check if this works
   //
   // uint64_t size = malloc_usable_size(buffer)/sizeof(float);
-  float *buffer_copy = (float *)calloc(size, sizeof(float));//memcpy
+  float *buffer_copy = (float *)calloc(size, sizeof(float)); // memcpy
   for (int i = 0; i < size; i++) {
     buffer_copy[i] = buffer[i];
   }
@@ -209,9 +209,8 @@ tt *tt_fill(ttuple *s, float fill_value, bool requires_grad) {
   return t;
 }
 
-tt *tt_linspace(ttuple *s, float min, float max, int steps,
-                bool requires_grad) {
-  assert(steps == ttuple_prod(s));
+tt *tt_linspace(ttuple *s, float min, float max, bool requires_grad) {
+  int steps = ttuple_prod(s);
   tt *t = tt_zeros(s, requires_grad);
   for (uint64_t i = 0; i < t->data->size; i++) {
     float value = min + i * ((max - min) / (steps - 1));
@@ -412,7 +411,8 @@ void _mul_backwards(tt *self) {
   if (self->parents[0]->requires_grad) {
     tt *grads_0 = tt_mul(self->grads, self->parents[1]);
     tt *acc_grads_0 = tt_add(grads_0, self->parents[0]->grads);
-    // tt_destroy_grads(acc_grads_0); // this solution doesn't work, but need to fix grads having grads
+    // tt_destroy_grads(acc_grads_0); // this solution doesn't work, but need to
+    // fix grads having grads
     tt_free(self->parents[0]->grads);
     tt_free(grads_0);
     self->parents[0]->grads = acc_grads_0;
@@ -450,7 +450,6 @@ tt *tt_mul(tt *a, tt *b) {
   }
   return t;
 }
-
 
 void _sum_backwards(tt *self) {
   if (!self->parents[0]->requires_grad) {

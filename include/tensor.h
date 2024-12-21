@@ -83,7 +83,7 @@ tt *tt_from_buffer(ttuple *s, float *buffer, bool requires_grads);
 float tt_getindex(tt *self, ttuple *s);
 void tt_setindex(tt *self, ttuple *s, float num);
 tt *tt_fill(ttuple *s, float fill_value, bool requires_grad);
-tt *tt_linspace(ttuple *s, float min, float max, int steps, bool requires_grad);
+tt *tt_linspace(ttuple *s, float min, float max, bool requires_grad);
 tt *tt_uniform(ttuple *s, float min, float max, bool requires_grad);
 tt *tt_uniformint(ttuple *s, float min, float max, bool requires_grad);
 void tt_copy_buffer(tt *dest, tt *src);

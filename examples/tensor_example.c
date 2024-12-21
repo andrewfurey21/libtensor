@@ -225,23 +225,40 @@ int main(void) {
   tt *input_batch = NULL;
   tt *output_batch = NULL;
 
-  int batch_size = 16;
+  int batch_size = 8;
 
   load_mnist_batch(&input_batch, &output_batch, "data/mnist_test.csv", 10000,
                    batch_size);
-  display_mnist_image(input_batch);
 
-  // double check sgd/convs works
-  // mnist model
-  // conv (32, 3x3)
-  // relu
-  // maxpool (2, 2)
-  // flatten
-  // linear layer (100)
-  // relu
-  // linear layer (10)
-  // softmax
-  // loss: categorical cross entropy
-  // save tensor values
-  // test accuracy
+  // layer shapes
+  ttuple* kernel_1_shape = ttuple_build(4, 8, 1, 5, 5);
+  ttuple* kernel_2_shape = ttuple_build(4, 8, 8, 3, 3);
+  ttuple* linear_shape = ttuple_build(2, 200, 10);
+
+  // weights
+  tt* kernel_1 = tt_uniform(kernel_1_shape, -1, 1, true);
+  tt* kernel_2 = tt_uniform(kernel_2_shape, -1, 1, true);
+
+  tt* linear_weights = tt_uniform(linear_shape, -1, 1, true);
+
+  // layers
+  tt* conv_1 = tt_conv2d(input_batch, kernel_1);
+  tt* relu_1 = tt_relu(conv_1);
+  tt* maxpool_1 = tt_maxpool2d(relu_1, 2);
+
+  tt* conv_2 = tt_conv2d(maxpool_1, kernel_2);
+  tt* relu_2 = tt_relu(conv_2);
+  tt* maxpool_2 = tt_maxpool2d(relu_2, 2);
+
+  tt* flat = flatten(maxpool_2, 1);
+
+  tt* linear_1 = linear_layer(flat, linear_weights);
+
+  tt* loss = sparse_categorical_cross_entropy(linear_1, output_batch);
+
+  tgraph* comp_graph = tgraph_build(loss);
+  tgraph_zeroed(comp_graph);
+  tgraph_backprop(comp_graph);
+
+  tt_print(loss, false, false);
 }
