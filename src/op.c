@@ -21,6 +21,7 @@ size_t top_radix(enum top op) {
   case ADD:
   case MUL:
   case CONV_2D:
+  case MATMUL:
   case SUB:
     return 2;
   default:
@@ -28,7 +29,6 @@ size_t top_radix(enum top op) {
   }
 }
 
-// TODO: theres gota be a macro for this right?
 void print_op_string(enum top op) {
   switch (op) {
   case NOOP:
@@ -66,6 +66,9 @@ void print_op_string(enum top op) {
     return;
   case CONV_2D:
     printf("CONV 2D\n");
+    return;
+  case MATMUL:
+    printf("MATMUL\n");
     return;
   case SQUARE:
     printf("SQUARE\n");

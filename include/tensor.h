@@ -21,6 +21,7 @@ enum top { // need enough for: conv, batchnorm, maxpool, linear
   MAX_POOL_2D,
   NEG,
   CONV_2D,
+  MATMUL,
   SQUARE,
   SQRT,
   EXP,
@@ -90,9 +91,10 @@ void tt_copy_buffer(tt *dest, tt *src);
 tt *tt_copy(tt *original, bool requires_grad);
 void tt_to_zeros(tt *t);
 void tt_to_n(tt *t, float n);
-void tt_print(tt *t, bool no_buffer, bool show_grads);
+void tt_print(tt *t, bool show_buffer, bool show_grads);
 tt *tt_view(tt *tensor, tview *view);
 void tt_free(tt *t);
+bool tt_equal(tt* a, tt*b);
 
 // ops
 tt *tt_add(tt *a, tt *b);
@@ -105,6 +107,7 @@ tt *tt_neg(tt *a);
 tt *tt_expand(tt *a, uint64_t axis, uint64_t amount);
 tt *tt_maxpool2d(tt *input, int kernel_size);
 tt *tt_conv2d(tt *input, tt *kernels);
+tt *tt_matmul(tt *input, tt *other);
 tt* tt_square(tt* input);
 tt* tt_sqrt(tt* input);
 tt* tt_exp(tt* input);

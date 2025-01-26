@@ -272,7 +272,7 @@ void tt_to_n(struct tt *t, float n) {
   }
 }
 
-void tt_print(tt *t, bool no_buffer, bool show_grads) {
+void tt_print(tt *t, bool show_buffer, bool show_grads) {
   if (!t) {
     printf("values: (null)\n");
     return;
@@ -281,10 +281,7 @@ void tt_print(tt *t, bool no_buffer, bool show_grads) {
   if (t->requires_grad) {
     print_op_string(t->op);
   }
-  // else {
-  //   printf("NO GRADS\n");
-  // }
-  if (!no_buffer) {
+  if (show_buffer) {
     printf("values: [ ");
     for (int i = 0; i < t->data->size; i++) {
       printf("%f, ", t->data->buffer[i]);
@@ -321,6 +318,16 @@ void tt_free_parents(tt *t) {
   free(t->parents);
 }
 
+bool tt_equal(tt* a, tt*b) {
+  assert(ttuple_equal(a->view->shape, b->view->shape));
+  for (int i = 0; i < ttuple_prod(a->view->shape); i++) {
+    if (fabs(a->data->buffer[i] - b->data->buffer[i]) > 1e-6) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void tt_destroy_grads(tt *t) {
   t->requires_grad = false;
   tt_free(t->grads);
@@ -344,11 +351,12 @@ void _add_backwards(tt *self) {
     self->parents[1]->grads = grads_1;
   }
 }
-
+// TODO: need to add track_gradients
+// tt_add(tt* a, tt* b, bool track_gradients);
 tt *tt_add(tt *a, tt *b) {
   assert(ttuple_equal(a->view->shape, b->view->shape) &&
          "Tensors are not the same shape.");
-  ttuple *copy = ttuple_copy(a->view->shape); // TODO: free copy??
+  ttuple *copy = ttuple_copy(a->view->shape); // TODO: free copy!!
   bool requires_grad = a->requires_grad || b->requires_grad;
 
   tt **parents = NULL;
@@ -359,6 +367,7 @@ tt *tt_add(tt *a, tt *b) {
   }
 
   tt *t = tt_zeros(copy, requires_grad);
+  ttuple_free(copy);
   t->parents = parents;
   t->op = ADD;
   t->_backwards = &_add_backwards;
@@ -954,6 +963,68 @@ tt *tt_maxpool2d(tt *input, int kernel_size) {
   return output;
 }
 
+void _matmul_backwards(tt* self) {
+  if (self->parents[0]->requires_grad) {
+
+  }
+  if (self->parents[1]->requires_grad) {
+  }
+}
+
+// TODO: make matmul work on multiple dimensions, because we need batches to work too.
+tt* tt_matmul(tt* a, tt* b) {
+  assert(a->view->shape->size == 2);
+  assert(b->view->shape->size == 2);
+
+  int aw = a->view->shape->items[1];
+  int ah = a->view->shape->items[0];
+
+  int bw = b->view->shape->items[1];
+  int bh= b->view->shape->items[0];
+
+  assert(ah == bw && "Tensors are not the correct shape");
+
+  ttuple* new_shape = ttuple_build(2, bh, aw);
+  bool requires_grad = a->requires_grad || b->requires_grad;
+  tt** parents = NULL;
+  if (requires_grad) {
+    parents = (tt**)malloc(top_radix(MATMUL) * sizeof(tt*));
+    parents[0] = a;
+    parents[1] = b;
+  }
+
+  tt *t = tt_zeros(new_shape, requires_grad);
+  ttuple_free(new_shape);
+  t->parents = parents;
+  t->op = MATMUL;
+  t->_backwards = &_matmul_backwards;
+
+  ttuple* ai = ttuple_zeros(2);
+  ttuple* bi = ttuple_zeros(2);
+  ttuple* oi = ttuple_zeros(2);
+  for (int h = 0; h < bh; h++) {
+    oi->items[0] = h;
+    bi->items[0] = h;
+    for (int k = 0; k < aw; k++) {
+      oi->items[1] = k;
+      ai->items[1] = k;
+      float value = 0;
+      for (int w = 0; w < bw; w++) {
+        bi->items[1] = w;
+        ai->items[0] = w;
+        float av = tt_getindex(a, ai);
+        float bv = tt_getindex(b, bi);
+        value += av * bv;
+      }
+      tt_setindex(t, oi, value);
+    }
+  }
+  ttuple_free(ai);
+  ttuple_free(bi);
+  ttuple_free(oi);
+  return t;
+}
+
 void _conv2d_backwards(tt *self) {
   int batch_size = self->view->shape->items[0];
   int cout = self->view->shape->items[1];
@@ -1079,8 +1150,8 @@ void _conv2d_backwards(tt *self) {
 // kernel shape: (cout, cin, kernelsize, kernelsize)
 // input shape: (batch size, cin, hin, win)
 // output shape: (batch size, cout, hout, wout)
+// should add groups
 tt *tt_conv2d(tt *input, tt *kernels) {
-
   ttuple *input_shape = input->view->shape;
   assert(input_shape->size == 4);
 
@@ -1157,7 +1228,6 @@ tt *tt_conv2d(tt *input, tt *kernels) {
   ttuple_free(input_index);
   ttuple_free(output_index);
   ttuple_free(kernel_index);
-
   return output;
 }
 

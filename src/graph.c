@@ -71,14 +71,9 @@ void tgraph_backprop(tgraph* net) {
 }
 
 
-// TODO: sort out the graph nicer.
-// use bfs instead of dfs
 void tgraph_print(tgraph* net, bool no_buffer, bool show_grads) {
     for (int i = 0; i < net->size; i++) {
         tt_print(net->nodes[i], no_buffer, show_grads);
         if (i < net->size-1) printf(" | \n");
     }
 }
-
-// gather_params
-// save_tensors

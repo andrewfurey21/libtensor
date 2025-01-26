@@ -14,8 +14,7 @@ LDFLAGS= -lm
 COMMON= -Iinclude/ -Isrc/
 CFLAGS=-Wall
 
-# TODO: compile multiple binaries for multiple examples
-EXAMPLE=./examples/tensor_example.c
+EXAMPLE=./examples/mnist.c
 EXEC=example
 EXECDIR=./build
 

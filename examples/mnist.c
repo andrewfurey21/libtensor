@@ -32,12 +32,11 @@ char *read_mnist_image(const char *file_name, int line_number) {
   int current_line = 0;
 
   while ((nread = getline(&line, &len, stream)) != -1) {
-    current_line++;
-
     if (current_line == line_number) {
       fclose(stream);
       return line;
     }
+    current_line++;
   }
   fclose(stream);
   free(line);
@@ -70,7 +69,7 @@ void load_mnist_buffer(const char *image, float *input, float *output,
 }
 
 void load_mnist_batch(tt **input_batch, tt **output_batch,
-                      const char *file_name, int file_length, int batch_size) {
+                      const char *file_name, int file_length, int batch_size, int line) {
   ttuple *input_shape = ttuple_build(4, batch_size, 1, 28, 28);
   ttuple *output_shape = ttuple_build(1, batch_size);
 
@@ -78,7 +77,7 @@ void load_mnist_batch(tt **input_batch, tt **output_batch,
   float *output = (float *)malloc(sizeof(float) * batch_size);
 
   for (int i = 0; i < batch_size; i++) {
-    int line = randi(1, file_length);
+    // int line = randi(1, file_length);
     char *image = read_mnist_image(file_name, line);
     load_mnist_buffer(image, input, output,
                       i * ttuple_prod(input_shape) / batch_size, i);
@@ -99,7 +98,7 @@ void display_mnist_image(tt *image) {
   ttuple *index = ttuple_zeros(4);
   for (int b = 0; b < image->view->shape->items[0]; b++) {
     index->items[0] = b;
-    printf("Batch #%d:\n", b+1);
+    printf("Batch item #%d:\n", b+1);
     for (int h = 0; h < image->view->shape->items[2]; h++) {
       index->items[2] = h;
       for (int w = 0; w < image->view->shape->items[3]; w++) {
@@ -107,10 +106,9 @@ void display_mnist_image(tt *image) {
         float value = tt_getindex(image, index);
         if (value > 150) {
           printf("MM");
-        } else if (value > 45)
+        } else {
           printf("..");
-        else
-          printf("  ");
+        }
       }
       printf("\n");
     }
@@ -196,8 +194,8 @@ tt *variance(tt *input, int axis, int correction) {
 // we give out.
 tt *sparse_categorical_cross_entropy(tt *input, tt *Y) {
   assert(Y->view->shape->size == 1);
-  assert(input->view->shape->size == 2);
-  assert(Y->view->shape->items[0] == input->view->shape->items[0]);
+  // assert(input->view->shape->size == 2);
+  // assert(Y->view->shape->items[0] == input->view->shape->items[0]);
 
   tt *one_hot_y = tt_zeros(input->view->shape, false);
   for (int i = 0; i < Y->view->shape->items[0]; i++) {
@@ -207,33 +205,71 @@ tt *sparse_categorical_cross_entropy(tt *input, tt *Y) {
   }
 
   tt *guesses = tt_mul(input, one_hot_y);
-  tt *no_zeros = tt_sum(guesses, 1);
+  tt *no_zeros = tt_sum(guesses, -1);
 
   tt *exp_all = tt_exp(input);
-  tt *sum_all = tt_sum(exp_all, 1);
+  tt *sum_all = tt_sum(exp_all, -1);
   tt *log_sum_all = tt_log(sum_all);
 
   tt *sub = tt_sub(log_sum_all, no_zeros);
   return mean(sub, -1);
 }
 
+// takes a vector!
+tt *log_softmax(tt *input) {
+  tt* exp_input = tt_exp(input);
+  tt* sum_exp_input = tt_sum(exp_input, -1);
+  tt* log_sum_exp_input = tt_log(sum_exp_input);
+  tt* expanded = tt_expand(log_sum_exp_input, 0, input->data->size);
+  return tt_sub(input, expanded);
+}
+
+typedef struct {
+  tt* conv_layer_1;
+  tt* conv_layer_2;
+  tt* linear_layer_1;
+  tt* linear_layer_2;
+} mnist_cnn;
+
 int main(void) {
   srand(time(NULL));
 
   // model architecture:
-  // input -> conv (1, 32, 3, 3) -> relu ->
-  // conv (32, 64, 3, 3) -> relu -> maxpool2d ->
-  // flatten -> linear layer (9216, 128) -> relu ->
-  // linear layer (128, 10) -> log softmax
+  // conv, relu
+  // conv, relu
+  // maxpool2d, flatten
+  // linear, relu
+  // linear, logsoftmax
 
   tt *input_batch = NULL;
   tt *output_batch = NULL;
 
-  int batch_size = 8;
+  int batch_size = 1;
+  int example = 123;
 
   load_mnist_batch(&input_batch, &output_batch, "data/mnist_test.csv", 10000,
-                   batch_size);
-  display_mnist_image(input_batch);
+                   batch_size, example);
+  // display_mnist_image(input_batch);
 
+  mnist_cnn model;
+  model.conv_layer_1   = tt_linspace(ttuple_build(4, 32, 1, 3, 3), 0, 10, true);
+  model.conv_layer_2   = tt_linspace(ttuple_build(4, 64, 32, 3, 3), 0, 10, true);
+  model.linear_layer_1 = tt_linspace(ttuple_build(2, 9216, 128), 0, 10, true);
+  model.linear_layer_2 = tt_linspace(ttuple_build(2, 128, 10), 0, 10, true);
 
+  // Conv (Layer 1)
+  tt* l1 = tt_conv2d(input_batch, model.conv_layer_1);
+  tt* l1_activations = tt_relu(l1);
+  // Conv (Layer 2)
+  tt* l2 = tt_conv2d(l1_activations, model.conv_layer_2);
+  tt* l2_activations = tt_relu(l2);
+  // Maxpool + Flatten
+  tt* maxpool = tt_maxpool2d(l2_activations, 2);
+  tt* flattened_maxpool = flatten(maxpool, 1);
+  // Linear (Layer 3)
+  tt* l3 = tt_matmul(model.linear_layer_1, flattened_maxpool);
+  tt* l3_activations = tt_relu(l3);
+  // Linear (Layer 3)
+  tt* l4 = tt_matmul(model.linear_layer_2, l3_activations);
+  // tt* l4_log_softmax = log_softmax(l4);
 }

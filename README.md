@@ -16,12 +16,29 @@ My approach was building a small set of base operations that can be used to buil
     - [x] reshape, flatten (just a reshape)
     - [x] sum/expand along axis
     - [x] relu
-    - [x] matmul/dot (indirectly, using reshape, expand, mul and sum)
+    - [ ] matmul
     - [x] max pool
     - [x] convolutions
     - [x] sparse categorical cross entropy
 - [ ] sgd optimizer
-- [ ] import/export weights
+
+## todos
+
+- tensor: implement matmul backwards and make sure batches work on forward pass too
+- optimizers: reimplement sgd.
+- get makefile to compile all programs into multiple binaries
+- tensor: get rid of storage abstraction and views (for now)
+- graph: make `tgraph_print` look better with bfs instead of dfs
+- graph: implement gather_params
+- graph: implement save_tensors and import_tensors
+- tensor: function for setting up tensors (theres a lot of boilerplate)
+- tensor: nicer tensor print function
+- misc: rename stuff (tgraph -> graph, tt -> tensor, ttuple -> tuple etc)
+- tensor: add `track_gradients` to each operation, and remove `tt_destroy_grads`
+- tensor: free structs that get copied (like `copy` in `tt_sub`)
+- misc: tests + github ci
+- tensor: groups, stride, dilation, padding to maxpool + conv. Figure out how im2col works, and how tinygrad does it's convolutions
+- misc: move `scce`, `flatten` etc to `functions.c` or something
 
 ## notes
 
@@ -38,42 +55,21 @@ tgraph_zeroed(comp_graph);
 tgraph_backprop(comp_graph);
 ```
 
-### how are matmul, batch norms and convolutions done?
-
-There is no direct matmul op. You have to do it manually with a reshape, expand, mul and sum.
-
-<!-- TODO: show image from excalidraw doing matmul -->
-
-Once I implement permute, it should just be transpose -> mul -> sum.
-
-```c
-// TODO: give examples
-```
-<!-- TODO: show image of graph of matmul -->
-
-There is also no direct batch norm op. You have to do it manually.
-
-```c
-// TODO: give examples
-```
-<!-- TODO: show image of graph of batch norm -->
-
-Convolutions are implemented as their on kernel for the moment.
-
 ## examples
 
-- [ ] mnist handwritten digit recognition
+- [ ] mnist cnn
 
 ## future ideas
 
 - broadcasting, keepdim, proper views, strides, proper storage abstraction (like numpy)
-- better viz
-- could totally do a refactor, might be nice to have a context like ggml. make it so that memory doesnt get allocated when running.
+- better viz of graph
+- could totally do a refactor, might be nice to have a context like ggml. make it so that memory doesnt get reallocated when running.
 - coreops.c, ops.c, storage.c, graph.c, nn.c (neural net specific likes optimizers), extra (tuples etc)
 - need graph.c?
 - could do permute+pad op, then redo maxpools/convs.
-- more ops: batchnorm, attention, etc.
-- different backends (opencl/vulkan, cuda, metal, avx/sse, triton, rocm, tenstorrent)
+- more functions: batchnorm, attention,, etc.
+- import/export weights in different formats
+- proper backend system (opencl/vulkan, cuda, metal, avx/sse, triton, rocm, tenstorrent)
 - more example models (yolo, gpt, sam etc)
 - choose different types (double, f16, bfloat, mx-compliant)
 - other optimizer implementations (adagrad, rmsprop, adam, demo, etc)
@@ -81,3 +77,5 @@ Convolutions are implemented as their on kernel for the moment.
 - python bindings
 - multigpu
 - onnx support
+- homomorphic encryption
+- quantization
