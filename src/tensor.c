@@ -12,6 +12,8 @@
 
 #include "../include/tensor.h"
 
+#define max(a, b) ((a) > (b) ? a : b)
+
 // TODO:
 // get rid of storage/view abstraction.
 // theres a lot of repetitive stuff, especially in ops. refactor a bit.
@@ -172,32 +174,30 @@ tt *tt_from_buffer(ttuple *s, float *buffer, bool requires_grad) {
 }
 
 float tt_getindex(tt *self, ttuple *s) {
-  ttuple *self_shape = self->view->shape;
-  assert(s->size == self->view->shape->size);
+  ttuple *self_shape = self->view->shape->size < s->size ? ttuple_add_one(self->view->shape) : self->view->shape;
   uint64_t index = 0;
   for (int i = 0; i < s->size; i++) {
-    assert(s->items[i] < self_shape->items[i]);
     uint64_t mul = 1;
     for (int j = i + 1; j < s->size; j++) {
       mul *= self_shape->items[j];
     }
     index += mul * s->items[i];
   }
+  assert(index < ttuple_prod(self_shape));
   return self->data->buffer[index];
 }
 
 void tt_setindex(tt *self, ttuple *s, float num) {
-  ttuple *self_shape = self->view->shape;
-  assert(s->size == self->view->shape->size);
+  ttuple *self_shape = self->view->shape->size < s->size ? ttuple_add_one(self->view->shape) : self->view->shape;
   uint64_t index = 0;
   for (int i = 0; i < s->size; i++) {
-    assert(s->items[i] < self_shape->items[i]);
     uint64_t mul = 1;
     for (int j = i + 1; j < s->size; j++) {
       mul *= self_shape->items[j];
     }
     index += mul * s->items[i];
   }
+  assert(index < ttuple_prod(self->view->shape));
   self->data->buffer[index] = num;
 }
 
@@ -318,7 +318,7 @@ void tt_free_parents(tt *t) {
   free(t->parents);
 }
 
-bool tt_equal(tt* a, tt*b) {
+bool tt_equal(tt *a, tt *b) {
   assert(ttuple_equal(a->view->shape, b->view->shape));
   for (int i = 0; i < ttuple_prod(a->view->shape); i++) {
     if (fabs(a->data->buffer[i] - b->data->buffer[i]) > 1e-6) {
@@ -963,32 +963,43 @@ tt *tt_maxpool2d(tt *input, int kernel_size) {
   return output;
 }
 
-void _matmul_backwards(tt* self) {
+void _matmul_backwards(tt *self) {
   if (self->parents[0]->requires_grad) {
-
   }
   if (self->parents[1]->requires_grad) {
   }
 }
 
-// TODO: make matmul work on multiple dimensions, because we need batches to work too.
-tt* tt_matmul(tt* a, tt* b) {
-  assert(a->view->shape->size == 2);
-  assert(b->view->shape->size == 2);
+// for now, a can have 2d
+// b can have 2d or 3d (for batches)
+// need to do broadcasting
+tt *tt_matmul(tt *a, tt *b) {
+  int a_size = a->view->shape->size;
+  int b_size = b->view->shape->size;
+  assert(a_size == 2);
+  assert(b_size == 2 || b_size == 3);
 
-  int aw = a->view->shape->items[1];
-  int ah = a->view->shape->items[0];
+  int aw = a->view->shape->items[a_size - 1];
+  int ah = a->view->shape->items[a_size - 2];
 
-  int bw = b->view->shape->items[1];
-  int bh= b->view->shape->items[0];
+  int bw = b->view->shape->items[b_size - 1];
+  int bh = b->view->shape->items[b_size - 2];
 
-  assert(ah == bw && "Tensors are not the correct shape");
+  int bs = b_size == 3 ? b->view->shape->items[0] : 1;
 
-  ttuple* new_shape = ttuple_build(2, bh, aw);
+  assert(aw == bh && "Tensors are not the correct shape");
+
+  ttuple *new_shape;
+  if (b_size == 3) {
+    new_shape = ttuple_build(3, bs, ah, bw);
+  } else {
+    new_shape = ttuple_build(2, ah, bw);
+  }
+
   bool requires_grad = a->requires_grad || b->requires_grad;
-  tt** parents = NULL;
+  tt **parents = NULL;
   if (requires_grad) {
-    parents = (tt**)malloc(top_radix(MATMUL) * sizeof(tt*));
+    parents = (tt **)malloc(top_radix(MATMUL) * sizeof(tt *));
     parents[0] = a;
     parents[1] = b;
   }
@@ -999,24 +1010,29 @@ tt* tt_matmul(tt* a, tt* b) {
   t->op = MATMUL;
   t->_backwards = &_matmul_backwards;
 
-  ttuple* ai = ttuple_zeros(2);
-  ttuple* bi = ttuple_zeros(2);
-  ttuple* oi = ttuple_zeros(2);
-  for (int h = 0; h < bh; h++) {
-    oi->items[0] = h;
-    bi->items[0] = h;
-    for (int k = 0; k < aw; k++) {
+  ttuple *ai = ttuple_zeros(2);
+  ttuple *bi = ttuple_zeros(3);
+  ttuple *oi = ttuple_zeros(3);
+
+  for (int batch = 0; batch < bs; batch++) {
+    oi->items[0] = batch;
+    bi->items[0] = batch;
+    for (int k = 0; k < ah; k++) {
       oi->items[1] = k;
-      ai->items[1] = k;
-      float value = 0;
-      for (int w = 0; w < bw; w++) {
-        bi->items[1] = w;
-        ai->items[0] = w;
-        float av = tt_getindex(a, ai);
-        float bv = tt_getindex(b, bi);
-        value += av * bv;
+      ai->items[0] = k;
+      for (int j = 0; j < bw; j++) {
+        oi->items[2] = j;
+        bi->items[2] = j;
+        float sum = 0;
+        for (int i = 0; i < aw; i++) {
+          bi->items[1] = i;
+          ai->items[1] = i;
+          float av = tt_getindex(a, ai);
+          float bv = tt_getindex(b, bi);
+          sum += av * bv;
+        }
+        tt_setindex(t, oi, sum);
       }
-      tt_setindex(t, oi, value);
     }
   }
   ttuple_free(ai);

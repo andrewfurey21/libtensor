@@ -46,6 +46,7 @@ bool ttuple_equal(ttuple *a, ttuple *b);
 ttuple *ttuple_div(ttuple *a, ttuple *b);
 void ttuple_free(ttuple *s);
 void ttuple_print(ttuple *s);
+ttuple* ttuple_add_one(ttuple* s);
 
 // ttuple* ttuple_permute(ttuple* shape, ttuple* axes);
 // bool tshape_duplicates(struct tshape* axes);
