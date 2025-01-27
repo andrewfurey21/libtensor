@@ -254,8 +254,8 @@ int main(void) {
   mnist_cnn model;
   model.conv_layer_1   = tt_linspace(ttuple_build(4, 32, 1, 3, 3), 0, 10, true);
   model.conv_layer_2   = tt_linspace(ttuple_build(4, 64, 32, 3, 3), 0, 10, true);
-  model.linear_layer_1 = tt_linspace(ttuple_build(2, 9216, 128), 0, 10, true);
-  model.linear_layer_2 = tt_linspace(ttuple_build(2, 128, 10), 0, 10, true);
+  model.linear_layer_1 = tt_linspace(ttuple_build(2, 128, 9216), 0, 10, true);
+  model.linear_layer_2 = tt_linspace(ttuple_build(2, 10, 128), 0, 10, true);
 
   // Conv (Layer 1)
   tt* l1 = tt_conv2d(input_batch, model.conv_layer_1);
@@ -266,10 +266,14 @@ int main(void) {
   // Maxpool + Flatten
   tt* maxpool = tt_maxpool2d(l2_activations, 2);
   tt* flattened_maxpool = flatten(maxpool, 1);
+  ttuple* new_shape = ttuple_build(3, batch_size, 9216, 1);
+  tt* l3_input = tt_reshape(flattened_maxpool, new_shape);
   // Linear (Layer 3)
-  tt* l3 = tt_matmul(model.linear_layer_1, flattened_maxpool);
+  tt* l3 = tt_matmul(model.linear_layer_1, l3_input);
   tt* l3_activations = tt_relu(l3);
   // Linear (Layer 3)
   tt* l4 = tt_matmul(model.linear_layer_2, l3_activations);
+  // tt* l5 = linear_layer(l3_activations, model.linear_layer_2);
+
   // tt* l4_log_softmax = log_softmax(l4);
 }
