@@ -101,3 +101,12 @@ void ttuple_print(ttuple* s) {
     }
     printf(")\n");
 }
+
+ttuple* ttuple_add_one(ttuple* s) {
+    assert(s->size < MAX_ITEMS - 1);
+    ttuple* new_shape = ttuple_ones(s->size + 1);
+    for (int i = 1; i < new_shape->size; i++) {
+        new_shape->items[i] = s->items[i-1];
+    }
+    return new_shape;
+}
