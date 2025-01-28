@@ -24,7 +24,7 @@ My approach was building a small set of base operations that can be used to buil
 
 ## todos
 
-- tensor: fix flatten to work with matmul
+- tensor: double check init functions work
 - tensor: implement matmul backwards
 - optimizers: reimplement sgd.
 - get makefile to compile all programs into multiple binaries
@@ -40,6 +40,9 @@ My approach was building a small set of base operations that can be used to buil
 - misc: move `scce`, `flatten` etc to `functions.c` or something
 - misc: don't allcoate memory when doing ops, especially when training.
 - graph: make `tgraph_print` look better with bfs instead of dfs
+- misc: impl getenv
+- tensor: impl groups, so that we can do depthwise separable convolutions
+- misc: train a mnist cnn
 
 ## notes
 

@@ -10,13 +10,6 @@
 
 #define MNIST_IMAGE_SIZE 28
 
-// TODO:
-// check summing with (2, 1, 1) or something with ones get name of
-// linspace/arange correct get this working correctly, compare with proper
-// tinygrad/pytorch impl variable shapes etc. add to hl_ops or something. need
-// to free stuff in function if not being used later. use getenv for batchsize,
-// learning_rate, etc other params. add training param to each function
-
 int randi(int min, int max) {
   int value = roundf((float)rand() / (float)RAND_MAX * (max - min) + min);
   return value;
@@ -215,13 +208,17 @@ tt *sparse_categorical_cross_entropy(tt *input, tt *Y) {
   return mean(sub, -1);
 }
 
-// takes a vector!
+// takes a vector! (1, n)
+// TODO: double check gradients work
 tt *log_softmax(tt *input) {
   tt* exp_input = tt_exp(input);
   tt* sum_exp_input = tt_sum(exp_input, -1);
   tt* log_sum_exp_input = tt_log(sum_exp_input);
   tt* expanded = tt_expand(log_sum_exp_input, 0, input->data->size);
-  return tt_sub(input, expanded);
+  ttuple* new_shape = ttuple_build(1, input->view->shape->items[1]);
+  tt* reshaped_input = tt_reshape(input, new_shape);
+  ttuple_free(new_shape);
+  return tt_sub(reshaped_input, expanded);
 }
 
 typedef struct {
@@ -249,13 +246,13 @@ int main(void) {
 
   load_mnist_batch(&input_batch, &output_batch, "data/mnist_test.csv", 10000,
                    batch_size, example);
-  // display_mnist_image(input_batch);
+  display_mnist_image(input_batch);
 
   mnist_cnn model;
-  model.conv_layer_1   = tt_linspace(ttuple_build(4, 32, 1, 3, 3), 0, 10, true);
-  model.conv_layer_2   = tt_linspace(ttuple_build(4, 64, 32, 3, 3), 0, 10, true);
-  model.linear_layer_1 = tt_linspace(ttuple_build(2, 128, 9216), 0, 10, true);
-  model.linear_layer_2 = tt_linspace(ttuple_build(2, 10, 128), 0, 10, true);
+  model.conv_layer_1   = tt_conv_init(ttuple_build(4, 32, 1, 3, 3), 1, 3, true);
+  model.conv_layer_2   = tt_conv_init(ttuple_build(4, 64, 32, 3, 3), 32, 3, true);
+  model.linear_layer_1 = tt_linear_init(ttuple_build(2, 128, 9216), 9216, true);
+  model.linear_layer_2 = tt_linear_init(ttuple_build(2, 10, 128), 128, true);
 
   // Conv (Layer 1)
   tt* l1 = tt_conv2d(input_batch, model.conv_layer_1);
@@ -273,7 +270,8 @@ int main(void) {
   tt* l3_activations = tt_relu(l3);
   // Linear (Layer 3)
   tt* l4 = tt_matmul(model.linear_layer_2, l3_activations);
-  // tt* l5 = linear_layer(l3_activations, model.linear_layer_2);
-
-  // tt* l4_log_softmax = log_softmax(l4);
+  tt* logits = flatten(l4, 1);
+  // log softmax
+  tt* log_probs = log_softmax(logits);
+  tt_print(log_probs, true, false);
 }

@@ -96,6 +96,8 @@ void tt_print(tt *t, bool show_buffer, bool show_grads);
 tt *tt_view(tt *tensor, tview *view);
 void tt_free(tt *t);
 bool tt_equal(tt* a, tt*b);
+tt* tt_linear_init(ttuple* shape, int in_features, bool requires_grad);
+tt* tt_conv_init(ttuple* shape, int in_channels, int kernel_size, bool requires_grad);
 
 // ops
 tt *tt_add(tt *a, tt *b);

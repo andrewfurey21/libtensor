@@ -336,6 +336,16 @@ void tt_destroy_grads(tt *t) {
   tt_free_parents(t);
 }
 
+tt* tt_linear_init(ttuple* shape, int in_features, bool requires_grad) {
+  float bound = 1.0f / sqrtf((float)in_features);
+  return tt_uniform(shape, -bound, bound, requires_grad);
+}
+
+tt* tt_conv_init(ttuple* shape, int in_channels, int kernel_size, bool requires_grad) {
+  float scale = 1.0f / sqrtf((float)(in_channels * kernel_size));
+  return tt_uniform(shape, -scale, scale, requires_grad);
+}
+
 void _add_backwards(tt *self) {
   if (self->parents[0]->requires_grad) {
     tt *grads_0 = tt_add(self->grads, self->parents[0]->grads);
