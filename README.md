@@ -4,8 +4,6 @@
 
 Zero-dependency tensor library with automatic differentiation for deep learning.
 
-My approach was building a small set of base operations that can be used to build more complicated operations like matmul, convs etc, sort of like tinygrad.
-
 ## current features
 
 - [x] tensor
@@ -21,28 +19,6 @@ My approach was building a small set of base operations that can be used to buil
     - [x] convolutions
     - [x] sparse categorical cross entropy
 - [ ] sgd optimizer
-
-## todos
-
-- tensor: double check init functions work
-- tensor: implement matmul backwards
-- optimizers: reimplement sgd.
-- get makefile to compile all programs into multiple binaries
-- tensor: get rid of storage abstraction and views (for now)
-- graph: implement gather_params
-- graph: implement save_tensors and import_tensors
-- tensor: function for setting up tensors (theres a lot of boilerplate)
-- tensor: nicer tensor print function
-- misc: rename stuff (tgraph -> graph, tt -> tensor, ttuple -> tuple etc)
-- tensor: add `track_gradients` to each operation, and remove `tt_destroy_grads`
-- tensor: free structs that get copied (like `copy` in `tt_sub`)
-- misc: tests + github ci
-- misc: move `scce`, `flatten` etc to `functions.c` or something
-- misc: don't allcoate memory when doing ops, especially when training.
-- graph: make `tgraph_print` look better with bfs instead of dfs
-- misc: impl getenv
-- tensor: impl groups, so that we can do depthwise separable convolutions
-- misc: train a mnist cnn
 
 ## notes
 
