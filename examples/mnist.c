@@ -219,16 +219,23 @@ int main(void) {
 
   load_mnist_batch(input_batch, output_batch, "data/mnist_test.csv", 10000,
                    batch_size);
-  display_mnist_image(input_batch, output_batch, NULL);
+  // display_mnist_image(input_batch, output_batch, NULL);
 
   mnist_cnn model;
-  model.conv_layer_1 = tt_conv_init(ttuple_build(4, 32, 1, 3, 3), 1, 3,
-  true); model.conv_layer_2 = tt_conv_init(ttuple_build(4, 64, 32, 3, 3), 32,
-  3, true); model.linear_layer_1 = tt_linear_init(ttuple_build(2, 128, 9216),
-  9216, true); model.linear_layer_2 = tt_linear_init(ttuple_build(2, 10,
-  128), 128, true);
 
-  // Conv (Layer 1)
+  ttuple *conv_layer_1_shape = ttuple_build(4, 32, 1, 3, 3);
+  model.conv_layer_1 = tt_conv_init(conv_layer_1_shape, 1, 3, true);
+
+  ttuple *conv_layer_2_shape = ttuple_build(4, 64, 32, 3, 3);
+  model.conv_layer_2 = tt_conv_init(conv_layer_2_shape, 32, 3, true);
+
+  ttuple *linear_layer_1_shape = ttuple_build(2, 128, 9216);
+  model.linear_layer_1 = tt_linear_init(linear_layer_1_shape, 9216, true);
+
+  ttuple *linear_layer_2_shape = ttuple_build(2, 10, 128);
+  model.linear_layer_2 = tt_linear_init(linear_layer_2_shape, 128, true);
+
+  // // Conv (Layer 1)
   tt *l1 = tt_conv2d(input_batch, model.conv_layer_1);
   tt *l1_activations = tt_relu(l1);
   // Conv (Layer 2)
@@ -245,7 +252,8 @@ int main(void) {
   // Linear (Layer 3)
   tt *l4 = tt_matmul(model.linear_layer_2, l3_activations);
   tt *logits = flatten(l4, 1);
-  // log softmax
-  tt *log_probs = log_softmax(logits);
-  tt_print(log_probs, true, false);
+  tt_print(logits, true, false);
+  // // log softmax
+  // tt *log_probs = log_softmax(logits);
+  // tt_print(log_probs, true, false);
 }

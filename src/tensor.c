@@ -342,7 +342,7 @@ tt* tt_linear_init(ttuple* shape, int in_features, bool requires_grad) {
 }
 
 tt* tt_conv_init(ttuple* shape, int in_channels, int kernel_size, bool requires_grad) {
-  float scale = 1.0f / sqrtf((float)(in_channels * kernel_size));
+  float scale = 1.0f / sqrtf((float)(in_channels * kernel_size * kernel_size));
   return tt_uniform(shape, -scale, scale, requires_grad);
 }
 
