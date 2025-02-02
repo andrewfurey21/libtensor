@@ -17,6 +17,18 @@ int randi(int min, int max) {
   return value;
 }
 
+int envvar(const char *name, int default_value) {
+  const char *var = getenv(name);
+  if (var == NULL) {
+    return default_value;
+  }
+  char *endptr;
+  unsigned long result;
+  result = strtoul(var, &endptr, 10);
+  assert(*endptr == 0 && "Only accepts ints");
+  return result;
+}
+
 char *read_mnist_image(const char *file_name, int line_number) {
   FILE *stream = fopen(file_name, "r");
   assert(stream != NULL && "Couldn't read file");
@@ -209,7 +221,7 @@ typedef struct {
 
 int main(void) {
   srand(time(NULL));
-  int batch_size = 8;
+  int batch_size = envvar("BS", 8);
 
   ttuple *input_batch_shape = ttuple_build(4, batch_size, 1, 28, 28);
   tt *input_batch = tt_zeros(input_batch_shape, false);
