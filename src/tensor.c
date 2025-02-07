@@ -15,19 +15,9 @@
 #define max(a, b) ((a) > (b) ? a : b)
 
 // TODO:
-// get rid of storage/view abstraction.
-// theres a lot of repetitive stuff, especially in ops. refactor a bit.
-// test a graph, where on input needs grads and the other doesn't.
 // rename a/s in function parameters to original_tensor, shape, etc.
-// maybe rename backwards functions to like tensor_sum_backwards (not in
-// header file)
 // double check backwards functions are accumulating gradients and not just
 // reseting them
-// refactor ttmaxpool2d backwards, so that its only the first 5 nested for loop
-// not both
-// refactor setting up tensors in ops with a function.
-// could probably calcualte dNext/dCurrent in forward pass, then mul by incoming
-// gradient in backwards.
 
 tstorage *tstorage_new(uint64_t buffer_length) {
   float *buffer = (float *)calloc(buffer_length, sizeof(float));
@@ -974,8 +964,13 @@ tt *tt_maxpool2d(tt *input, int kernel_size) {
 }
 
 void _matmul_backwards(tt *self) {
+  // weights
   if (self->parents[0]->requires_grad) {
+  
+
+
   }
+  // inputs
   if (self->parents[1]->requires_grad) {
   }
 }

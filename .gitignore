@@ -1,6 +1,6 @@
 *.a
 obj/*
 build/*
-*.py
+test.py
 data/*
 

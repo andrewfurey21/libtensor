@@ -117,6 +117,16 @@ tt* tt_exp(tt* input);
 tt* tt_log(tt* input);
 tt *tt_reciprocal(tt *a);
 
+//functions
+tt *flatten(tt *input, int start_dim);
+tt *mean(tt *input, int axis);
+tt *variance(tt *input, int axis, int correction); // FIXME:
+tt *sparse_categorical_cross_entropy(tt *input, tt *Y);
+
+//helpers
+int randi(int min, int max);
+int envvar(const char *name, int default_value);
+
 // computational graph
 typedef struct {
   struct tt **nodes;
@@ -146,5 +156,6 @@ toptimizer *toptimizer_build(tt **params, uint64_t size,
                              toptimizer_params *opt_params,
                              void (*step)(toptimizer *));
 void toptimizer_free(toptimizer *topt);
+
 
 #endif

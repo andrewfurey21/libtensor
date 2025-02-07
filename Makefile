@@ -24,7 +24,7 @@ endif
 
 CFLAGS+=$(OPTS)
 
-OBJ=graph.o op.o optimizers.o tuple.o tensor.o
+OBJ=graph.o op.o optimizers.o tuple.o tensor.o functions.o helpers.o
 
 OBJS = $(addprefix $(OBJDIR), $(OBJ))
 DEPS = Makefile include/tensor.h
