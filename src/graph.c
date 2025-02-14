@@ -25,6 +25,11 @@ void topo_sort(tgraph* net, tt* current) {
     assert(net->size < MAX_NODES && "Too many nodes in the tgraph.");
 }
 
+// TODO: 
+// 1. should memory of tensors be created lazily? 
+// maybe only allocate memory once. when graph is built. never reallocate.
+// 2. keep storage abstraction. this is where you build in broadcasting. make storage.c
+// tensor.c should only have operations and their backwards functions.
 tgraph* tgraph_build(tt* x) {
     assert(x->requires_grad && "Will not build graph on something that doesn't require gradients");
     tgraph* net = (tgraph*)malloc(sizeof(tgraph));

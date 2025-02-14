@@ -164,7 +164,9 @@ tt *tt_from_buffer(ttuple *s, float *buffer, bool requires_grad) {
 }
 
 float tt_getindex(tt *self, ttuple *s) {
-  ttuple *self_shape = self->view->shape->size < s->size ? ttuple_add_one(self->view->shape) : self->view->shape;
+  ttuple *self_shape = self->view->shape->size < s->size
+                           ? ttuple_add_one(self->view->shape)
+                           : self->view->shape;
   uint64_t index = 0;
   for (int i = 0; i < s->size; i++) {
     uint64_t mul = 1;
@@ -178,7 +180,9 @@ float tt_getindex(tt *self, ttuple *s) {
 }
 
 void tt_setindex(tt *self, ttuple *s, float num) {
-  ttuple *self_shape = self->view->shape->size < s->size ? ttuple_add_one(self->view->shape) : self->view->shape;
+  ttuple *self_shape = self->view->shape->size < s->size
+                           ? ttuple_add_one(self->view->shape)
+                           : self->view->shape;
   uint64_t index = 0;
   for (int i = 0; i < s->size; i++) {
     uint64_t mul = 1;
@@ -318,47 +322,38 @@ bool tt_equal(tt *a, tt *b) {
   return true;
 }
 
-void tt_destroy_grads(tt *t) {
-  t->requires_grad = false;
-  tt_free(t->grads);
-  t->_backwards = NULL;
-  t->op = NOOP;
-  tt_free_parents(t);
-}
-
-tt* tt_linear_init(ttuple* shape, int in_features, bool requires_grad) {
+tt *tt_linear_init(ttuple *shape, int in_features, bool requires_grad) {
   float bound = 1.0f / sqrtf((float)in_features);
   return tt_uniform(shape, -bound, bound, requires_grad);
 }
 
-tt* tt_conv_init(ttuple* shape, int in_channels, int kernel_size, bool requires_grad) {
+tt *tt_conv_init(ttuple *shape, int in_channels, int kernel_size,
+                 bool requires_grad) {
   float scale = 1.0f / sqrtf((float)(in_channels * kernel_size * kernel_size));
   return tt_uniform(shape, -scale, scale, requires_grad);
 }
 
 void _add_backwards(tt *self) {
   if (self->parents[0]->requires_grad) {
-    tt *grads_0 = tt_add(self->grads, self->parents[0]->grads);
-    // tt_destroy_grads(grads_0); // TODO: check if grads before doing
+    tt *grads_0 = tt_add(self->grads, self->parents[0]->grads, false);
     tt_free(self->parents[0]->grads);
     self->parents[0]->grads = grads_0;
   }
 
   if (self->parents[1]->requires_grad) {
-    tt *grads_1 = tt_add(self->grads, self->parents[1]->grads);
-    // tt_destroy_grads(grads_1);
+    tt *grads_1 = tt_add(self->grads, self->parents[1]->grads, false);
     tt_free(self->parents[1]->grads);
     self->parents[1]->grads = grads_1;
   }
 }
 // TODO: need to add track_gradients
 // tt_add(tt* a, tt* b, bool track_gradients);
-tt *tt_add(tt *a, tt *b) {
+tt *tt_add(tt *a, tt *b, bool track_grads) {
   assert(ttuple_equal(a->view->shape, b->view->shape) &&
          "Tensors are not the same shape.");
   ttuple *copy = ttuple_copy(a->view->shape); // TODO: free copy!!
-  bool requires_grad = a->requires_grad || b->requires_grad;
-
+  
+  bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tt **parents = NULL;
   if (requires_grad) {
     parents = (tt **)malloc(top_radix(ADD) * sizeof(tt *));
@@ -379,26 +374,24 @@ tt *tt_add(tt *a, tt *b) {
 
 void _sub_backwards(tt *self) {
   if (self->parents[0]->requires_grad) {
-    tt *grads_0 = tt_add(self->grads, self->parents[0]->grads);
-    // tt_destroy_grads(grads_0);
+    tt *grads_0 = tt_add(self->grads, self->parents[0]->grads, false);
     tt_free(self->parents[0]->grads);
     self->parents[0]->grads = grads_0;
   }
 
   if (self->parents[1]->requires_grad) {
-    tt *grads_1 = tt_sub(self->parents[1]->grads, self->grads);
-    // tt_destroy_grads(grads_1);
+    tt *grads_1 = tt_sub(self->parents[1]->grads, self->grads, false);
     tt_free(self->parents[1]->grads);
-    self->parents[1]->grads = grads_1;
+    self->parents[1]->grads = grads_1; // TODO: in place?
   }
 }
 
-tt *tt_sub(tt *a, tt *b) {
+tt *tt_sub(tt *a, tt *b, bool track_grads) {
   assert(ttuple_equal(a->view->shape, b->view->shape) &&
          "Tensors are not the same shape.");
   ttuple *copy = ttuple_copy(a->view->shape); // TODO: free copy??
-  bool requires_grad = a->requires_grad || b->requires_grad;
 
+  bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tt **parents = NULL;
   if (requires_grad) {
     parents = (tt **)malloc(top_radix(SUB) * sizeof(tt *));
@@ -418,31 +411,28 @@ tt *tt_sub(tt *a, tt *b) {
 
 void _mul_backwards(tt *self) {
   if (self->parents[0]->requires_grad) {
-    tt *grads_0 = tt_mul(self->grads, self->parents[1]);
-    tt *acc_grads_0 = tt_add(grads_0, self->parents[0]->grads);
-    // tt_destroy_grads(acc_grads_0); // this solution doesn't work, but need to
-    // fix grads having grads
+    tt *grads_0 = tt_mul(self->grads, self->parents[1], false);
+    tt *acc_grads_0 = tt_add(grads_0, self->parents[0]->grads, false);
     tt_free(self->parents[0]->grads);
     tt_free(grads_0);
     self->parents[0]->grads = acc_grads_0;
   }
 
   if (self->parents[1]->requires_grad) {
-    tt *grads_1 = tt_mul(self->grads, self->parents[0]);
-    tt *acc_grads_1 = tt_add(grads_1, self->parents[1]->grads);
-    // tt_destroy_grads(acc_grads_1);
+    tt *grads_1 = tt_mul(self->grads, self->parents[0], false);
+    tt *acc_grads_1 = tt_add(grads_1, self->parents[1]->grads, false);
     tt_free(self->parents[1]->grads);
     tt_free(grads_1);
     self->parents[1]->grads = acc_grads_1;
   }
 }
 
-tt *tt_mul(tt *a, tt *b) {
+tt *tt_mul(tt *a, tt *b, bool track_grads) {
   assert(ttuple_equal(a->view->shape, b->view->shape) &&
          "Tensors are not the same shape.");
   ttuple *copy = ttuple_copy(a->view->shape);
-  bool requires_grad = a->requires_grad || b->requires_grad;
 
+  bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tt **parents = NULL;
   if (requires_grad) {
     parents = (tt **)malloc(top_radix(MUL) * sizeof(tt *));
@@ -471,7 +461,7 @@ void _sum_backwards(tt *self) {
   if (ttuple_equal(unit_shape, self_shape)) {
     tt *expanded_grads =
         tt_fill(parent_shape, self->grads->data->buffer[0], false);
-    tt *acc_grads = tt_add(self->parents[0]->grads, expanded_grads);
+    tt *acc_grads = tt_add(self->parents[0]->grads, expanded_grads, false);
     tt_free(self->parents[0]->grads);
     tt_free(expanded_grads);
     self->parents[0]->grads = acc_grads;
@@ -518,7 +508,7 @@ void _sum_backwards(tt *self) {
       }
     }
 
-    tt *acc_grads = tt_add(self->parents[0]->grads, expanded_grads);
+    tt *acc_grads = tt_add(self->parents[0]->grads, expanded_grads, false);
     tt_free(self->parents[0]->grads);
     tt_free(expanded_grads);
     self->parents[0]->grads = acc_grads;
@@ -529,7 +519,7 @@ void _sum_backwards(tt *self) {
 // axis=-1 => sum up all elements
 // currently always keepdims, except for axis=-1
 // could seriously use some tests here
-tt *tt_sum(tt *a, int axis) {
+tt *tt_sum(tt *a, int axis, bool track_grads) {
   assert(axis >= -1 && axis < (int)a->view->shape->size);
   ttuple *new_shape;
   if (axis == -1) {
@@ -539,13 +529,14 @@ tt *tt_sum(tt *a, int axis) {
     new_shape->items[axis] = 1;
   }
 
+  bool requires_grad = a->requires_grad && track_grads;
   tt **parents = NULL;
-  if (a->requires_grad) {
+  if (requires_grad) {
     parents = (tt **)malloc(top_radix(SUM_REDUCE) * sizeof(tt *));
     parents[0] = a;
   }
 
-  tt *t = tt_zeros(new_shape, a->requires_grad);
+  tt *t = tt_zeros(new_shape, requires_grad);
   t->parents = parents;
   t->op = SUM_REDUCE;
   t->_backwards = &_sum_backwards;
@@ -598,23 +589,25 @@ void _relu_backwards(tt *self) {
       grads->data->buffer[i] = 1;
     }
   }
-  tt *mul_grads = tt_mul(self->grads, grads);
-  tt *acc_grads = tt_add(self->parents[0]->grads, mul_grads);
+  tt *mul_grads = tt_mul(self->grads, grads, false);
+  tt *acc_grads = tt_add(self->parents[0]->grads, mul_grads, false);
   tt_free(grads);
   tt_free(self->parents[0]->grads);
   tt_free(mul_grads);
   self->parents[0]->grads = acc_grads;
 }
 
-tt *tt_relu(tt *a) {
+tt *tt_relu(tt *a, bool track_grads) {
   ttuple *copy = ttuple_copy(a->view->shape);
   tt **parents = NULL;
-  if (a->requires_grad) {
+
+  bool requires_grad = a->requires_grad && track_grads;
+  if (requires_grad) {
     parents = (tt **)malloc(top_radix(RELU) * sizeof(tt *));
     parents[0] = a;
   }
 
-  tt *t = tt_zeros(copy, a->requires_grad);
+  tt *t = tt_zeros(copy, requires_grad);
   t->parents = parents;
   t->op = RELU;
   t->_backwards = &_relu_backwards;
@@ -630,25 +623,24 @@ tt *tt_relu(tt *a) {
 void _reshape_backwards(tt *self) {
   if (!self->parents[0]->requires_grad)
     return;
-  tt *grads = tt_reshape(self->grads, self->parents[0]->view->shape);
-  tt *acc_grads = tt_add(grads, self->parents[0]->grads);
-  free(grads);
+  tt *grads = tt_reshape(self->grads, self->parents[0]->view->shape, false);
+  tt *acc_grads = tt_add(grads, self->parents[0]->grads, false);
+  tt_free(grads);
   self->parents[0]->grads = acc_grads;
 }
 
-tt *tt_reshape(tt *a, ttuple *new_shape) {
+tt *tt_reshape(tt *a, ttuple *new_shape, bool track_grads) {
   ttuple *new_shape_copy = ttuple_copy(new_shape);
   assert(ttuple_prod(new_shape) == ttuple_prod(a->view->shape));
   tt **parents = NULL;
   tt *reshaped_grads = NULL;
-  if (a->requires_grad) {
+  bool requires_grad = a->requires_grad && track_grads;
+  if (requires_grad) {
     parents = (tt **)malloc(top_radix(RESHAPE) * sizeof(tt *));
     parents[0] = a;
-    // TODO: shouldn't op be RESHAPE of grad then? why isn't it? it shouldn't be
-    // anyways.
-    reshaped_grads = tt_reshape(a->grads, new_shape_copy);
+    reshaped_grads = tt_reshape(a->grads, new_shape_copy, false);
   }
-  tt *t = tt_copy(a, a->requires_grad);
+  tt *t = tt_copy(a, requires_grad);
   free(t->grads);
   t->view->shape = new_shape_copy;
   t->parents = parents;
@@ -708,7 +700,8 @@ void _expand_backwards(tt *self) {
 // can expand axis where dim>=1
 // basically backwards sum
 // follows broadcasting rules, cannot expand dim that isn't 1
-tt *tt_expand(tt *original_tensor, uint64_t axis, uint64_t factor) {
+tt *tt_expand(tt *original_tensor, uint64_t axis, uint64_t factor,
+              bool track_grads) {
   ttuple *new_shape = ttuple_copy(original_tensor->view->shape);
   assert(axis >= 0 && axis < new_shape->size &&
          "Axis to expand is out of range.");
@@ -718,13 +711,14 @@ tt *tt_expand(tt *original_tensor, uint64_t axis, uint64_t factor) {
   // calculate new shape here
   new_shape->items[axis] *= factor; // TODO: check overflows.
 
+  bool requires_grad = track_grads && original_tensor->requires_grad;
   tt **parents = NULL;
-  if (original_tensor->requires_grad) {
+  if (requires_grad) {
     parents = (tt **)malloc(top_radix(EXPAND) * sizeof(tt *));
     parents[0] = original_tensor;
   }
 
-  tt *expanded_tensor = tt_zeros(new_shape, original_tensor->requires_grad);
+  tt *expanded_tensor = tt_zeros(new_shape, requires_grad);
   expanded_tensor->parents = parents;
   expanded_tensor->op = EXPAND;
   expanded_tensor->_backwards = &_expand_backwards;
@@ -765,20 +759,21 @@ void _neg_backwards(tt *self) {
     return;
   }
   tt *grads = tt_fill(self->view->shape, -1.0f, false);
-  tt *mul_grads = tt_mul(grads, self->grads);
-  tt *acc_grads = tt_add(mul_grads, self->parents[0]->grads);
+  tt *mul_grads = tt_mul(grads, self->grads, false);
+  tt *acc_grads = tt_add(mul_grads, self->parents[0]->grads, false);
   tt_free(self->parents[0]->grads);
   tt_free(grads);
   tt_free(mul_grads);
   self->parents[0]->grads = acc_grads;
 }
 
-tt *tt_neg(tt *a) {
+tt *tt_neg(tt *a, bool track_grads) {
   ttuple *shape = ttuple_copy(a->view->shape);
-  tt *t = tt_zeros(shape, a->requires_grad);
 
+  bool requires_grad = track_grads && a->requires_grad;
+  tt *t = tt_zeros(shape, requires_grad);
   tt **parents = NULL;
-  if (a->requires_grad) {
+  if (track_grads) {
     parents = (tt **)malloc(top_radix(NEG) * sizeof(tt *));
     parents[0] = a;
   }
@@ -881,9 +876,10 @@ void _maxpool2d_backwards(tt *self) {
   }
   ttuple_free(index);
 
-  tt *expanded_by_pooled_grads = tt_mul(expanded_self_grad, pooled_grads);
+  tt *expanded_by_pooled_grads =
+      tt_mul(expanded_self_grad, pooled_grads, false);
   tt *accumulated_grads =
-      tt_add(self->parents[0]->grads, expanded_by_pooled_grads);
+      tt_add(self->parents[0]->grads, expanded_by_pooled_grads, false);
   tt_free(expanded_self_grad);
   tt_free(pooled_grads);
   self->parents[0]->grads = accumulated_grads;
@@ -894,7 +890,7 @@ void _maxpool2d_backwards(tt *self) {
 // stride is kernel size
 // no dilation, padding. ceilmode=False.
 // 4d, 3d, 2d only.
-tt *tt_maxpool2d(tt *input, int kernel_size) {
+tt *tt_maxpool2d(tt *input, int kernel_size, bool track_grads) {
   ttuple *input_shape = input->view->shape;
   int x_index = input_shape->size - 1;
 
@@ -917,11 +913,12 @@ tt *tt_maxpool2d(tt *input, int kernel_size) {
   new_shape->items[end_index - 1] = new_height;
 
   tt **parents = NULL;
-  if (input->requires_grad) {
+  bool requires_grad = input->requires_grad && track_grads;
+  if (requires_grad) {
     parents = (tt **)malloc(top_radix(MAX_POOL_2D) * sizeof(tt *));
     parents[0] = input;
   }
-  tt *output = tt_zeros(new_shape, input->requires_grad);
+  tt *output = tt_zeros(new_shape, requires_grad);
   output->parents = parents;
   output->op = MAX_POOL_2D;
   output->_backwards = &_maxpool2d_backwards;
@@ -930,7 +927,6 @@ tt *tt_maxpool2d(tt *input, int kernel_size) {
   int channels = input_shape->size > 2 ? input_shape->items[dims - 3] : 0;
   int batches = input_shape->size > 3 ? input_shape->items[dims - 4] : 0;
 
-  // NOTE: this looks really bad.
   ttuple *index = ttuple_copy(input_shape);
   for (int b = 0; b < fmax(batches, 1); b++) {
     if (batches)
@@ -963,14 +959,12 @@ tt *tt_maxpool2d(tt *input, int kernel_size) {
   return output;
 }
 
+// broadcasting would get rid of the mallocs i think.
 void _matmul_backwards(tt *self) {
-  // weights
+  // weights: (transpose inputs * self.grad) sum
   if (self->parents[0]->requires_grad) {
-  
-
-
   }
-  // inputs
+  // inputs: (transpose weights * self.grad) expand
   if (self->parents[1]->requires_grad) {
   }
 }
@@ -978,7 +972,7 @@ void _matmul_backwards(tt *self) {
 // for now, a can have 2d
 // b can have 2d or 3d (for batches)
 // need to do broadcasting
-tt *tt_matmul(tt *a, tt *b) {
+tt *tt_matmul(tt *a, tt *b, bool track_grads) {
   int a_size = a->view->shape->size;
   int b_size = b->view->shape->size;
   assert(a_size == 2);
@@ -1001,8 +995,8 @@ tt *tt_matmul(tt *a, tt *b) {
     new_shape = ttuple_build(2, ah, bw);
   }
 
-  bool requires_grad = a->requires_grad || b->requires_grad;
   tt **parents = NULL;
+  bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   if (requires_grad) {
     parents = (tt **)malloc(top_radix(MATMUL) * sizeof(tt *));
     parents[0] = a;
@@ -1098,7 +1092,7 @@ void _conv2d_backwards(tt *self) {
         }
       }
     }
-    tt *acc_grads = tt_add(grads, self->parents[0]->grads);
+    tt *acc_grads = tt_add(grads, self->parents[0]->grads, false);
 
     tt_free(grads);
     tt_free(self->parents[0]->grads);
@@ -1152,7 +1146,7 @@ void _conv2d_backwards(tt *self) {
         }
       }
     }
-    tt *acc_grads = tt_add(grads, self->parents[1]->grads);
+    tt *acc_grads = tt_add(grads, self->parents[1]->grads, false);
 
     tt_free(grads);
     tt_free(self->parents[1]->grads);
@@ -1172,7 +1166,7 @@ void _conv2d_backwards(tt *self) {
 // input shape: (batch size, cin, hin, win)
 // output shape: (batch size, cout, hout, wout)
 // should add groups
-tt *tt_conv2d(tt *input, tt *kernels) {
+tt *tt_conv2d(tt *input, tt *kernels, bool track_grads) {
   ttuple *input_shape = input->view->shape;
   assert(input_shape->size == 4);
 
@@ -1196,9 +1190,8 @@ tt *tt_conv2d(tt *input, tt *kernels) {
 
   ttuple *out_shape = ttuple_build(4, batch_size, cout, hout, wout);
 
-  bool requires_grad = input->requires_grad || kernels->requires_grad;
-
   tt **parents = NULL;
+  bool requires_grad = (input->requires_grad || kernels->requires_grad) && track_grads;
   if (requires_grad) {
     parents = (tt **)malloc(top_radix(CONV_2D) * sizeof(tt *));
     parents[0] = input;
@@ -1254,25 +1247,24 @@ tt *tt_conv2d(tt *input, tt *kernels) {
 
 void _square_backwards(tt *self) {
   tt *twos = tt_fill(self->view->shape, 2, false);
-  tt *grads =
-      tt_mul(twos, self->parents[0]); // TODO: parents might have grads, so need
-                                      // to clear grads->grads later
-  tt *mul_self_grads = tt_mul(grads, self->grads);
-  tt *acc_grads = tt_add(mul_self_grads, self->parents[0]->grads);
+  tt *grads = tt_mul(twos, self->parents[0], false);
+  tt *mul_self_grads = tt_mul(grads, self->grads, false);
+  tt *acc_grads = tt_add(mul_self_grads, self->parents[0]->grads, false);
   tt_free(self->parents[0]->grads);
   tt_free(twos);
   tt_free(grads);
   self->parents[0]->grads = acc_grads;
 }
 
-tt *tt_square(tt *input) {
+tt *tt_square(tt *input, bool track_grads) {
   tt **parents = NULL;
-  if (input->requires_grad) {
+  bool requires_grad = track_grads && input->requires_grad;
+  if (requires_grad) {
     parents = (tt **)malloc(top_radix(SQUARE) * sizeof(tt *));
     parents[0] = input;
   }
 
-  tt *t = tt_zeros(input->view->shape, input->requires_grad);
+  tt *t = tt_zeros(input->view->shape, requires_grad);
   t->parents = parents;
   t->op = SQUARE;
   t->_backwards = &_square_backwards;
@@ -1289,9 +1281,9 @@ void _sqrt_backwards(tt *self) {
     copy_input->data->buffer[i] = pow(copy_input->data->buffer[i], -.5);
   }
   tt *halfs = tt_fill(self->view->shape, 1.0 / 2, false);
-  tt *grads = tt_mul(halfs, copy_input);
-  tt *mul_self_grads = tt_mul(grads, self->grads);
-  tt *acc_grads = tt_add(mul_self_grads, self->parents[0]->grads);
+  tt *grads = tt_mul(halfs, copy_input, false);
+  tt *mul_self_grads = tt_mul(grads, self->grads, false);
+  tt *acc_grads = tt_add(mul_self_grads, self->parents[0]->grads, false);
   tt_free(copy_input);
   tt_free(self->parents[0]->grads);
   tt_free(halfs);
@@ -1300,13 +1292,14 @@ void _sqrt_backwards(tt *self) {
   self->parents[0]->grads = acc_grads;
 }
 
-tt *tt_sqrt(tt *input) {
+tt *tt_sqrt(tt *input, bool track_grads) {
   tt **parents = NULL;
-  if (input->requires_grad) {
+  bool requires_grad = track_grads && input->requires_grad;
+  if (requires_grad) {
     parents = (tt **)malloc(top_radix(SQRT) * sizeof(tt *));
     parents[0] = input;
   }
-  tt *t = tt_zeros(input->view->shape, input->requires_grad);
+  tt *t = tt_zeros(input->view->shape, requires_grad);
   t->parents = parents;
   t->op = SQRT;
   t->_backwards = &_sqrt_backwards;
@@ -1317,20 +1310,21 @@ tt *tt_sqrt(tt *input) {
 }
 
 void _exp_backwards(tt *self) {
-  tt *mul = tt_mul(self, self->grads); // TODO: this grad might have grads now
-  tt *acc_grads = tt_add(mul, self->parents[0]->grads);
+  tt *mul = tt_mul(self, self->grads, false);
+  tt *acc_grads = tt_add(mul, self->parents[0]->grads, false);
   tt_free(self->parents[0]->grads);
   tt_free(mul);
   self->parents[0]->grads = acc_grads;
 }
 
-tt *tt_exp(tt *input) {
+tt *tt_exp(tt *input, bool track_grads) {
   tt **parents = NULL;
-  if (input->requires_grad) {
+  bool requires_grad = input->requires_grad && track_grads;
+  if (requires_grad) {
     parents = (tt **)malloc(top_radix(EXP) * sizeof(tt *));
     parents[0] = input;
   }
-  tt *t = tt_zeros(input->view->shape, input->requires_grad);
+  tt *t = tt_zeros(input->view->shape, requires_grad);
   t->parents = parents;
   t->op = EXP;
   t->_backwards = &_exp_backwards;
@@ -1345,22 +1339,22 @@ void _log_backwards(tt *self) {
   for (int i = 0; i < copy_input->data->size; i++) {
     copy_input->data->buffer[i] = 1.0f / self->parents[0]->data->buffer[i];
   }
-  tt *mul =
-      tt_mul(copy_input, self->grads); // TODO: this grad might have grads now
-  tt *acc_grads = tt_add(mul, self->parents[0]->grads);
+  tt *mul = tt_mul(copy_input, self->grads, false);
+  tt *acc_grads = tt_add(mul, self->parents[0]->grads, false);
   tt_free(self->parents[0]->grads);
   tt_free(mul);
   tt_free(copy_input);
   self->parents[0]->grads = acc_grads;
 }
 
-tt *tt_log(tt *input) {
+tt *tt_log(tt *input, bool track_grads) {
   tt **parents = NULL;
-  if (input->requires_grad) {
+  bool requires_grad = track_grads && input->requires_grad;
+  if (requires_grad) {
     parents = (tt **)malloc(top_radix(LOG) * sizeof(tt *));
     parents[0] = input;
   }
-  tt *t = tt_zeros(input->view->shape, input->requires_grad);
+  tt *t = tt_zeros(input->view->shape, requires_grad);
   t->parents = parents;
   t->op = LOG;
   t->_backwards = &_log_backwards;
@@ -1373,10 +1367,10 @@ tt *tt_log(tt *input) {
 void _reciprocal_backwards(tt *self) {
   if (self->parents[0]->requires_grad) {
     // - 1 / x^2
-    tt *grads_neg = tt_neg(self->grads);
-    tt *grads_mul = tt_mul(grads_neg, self);
-    tt *grads_square = tt_mul(grads_mul, self);
-    tt *acc_grads_1 = tt_add(grads_square, self->parents[0]->grads);
+    tt *grads_neg = tt_neg(self->grads, false);
+    tt *grads_mul = tt_mul(grads_neg, self, false);
+    tt *grads_square = tt_mul(grads_mul, self, false);
+    tt *acc_grads_1 = tt_add(grads_square, self->parents[0]->grads, false);
     tt_free(self->parents[0]->grads);
     tt_free(grads_neg);
     tt_free(grads_mul);
@@ -1385,16 +1379,17 @@ void _reciprocal_backwards(tt *self) {
   }
 }
 
-tt *tt_reciprocal(tt *a) {
+tt *tt_reciprocal(tt *a, bool track_grads) {
   ttuple *copy = ttuple_copy(a->view->shape);
 
+  bool requires_grad = track_grads && a->requires_grad;
   tt **parents = NULL;
-  if (a->requires_grad) {
+  if (requires_grad) {
     parents = (tt **)malloc(top_radix(RECIPROCAL) * sizeof(tt *));
     parents[0] = a;
   }
 
-  tt *t = tt_zeros(copy, a->requires_grad);
+  tt *t = tt_zeros(copy, requires_grad);
   t->parents = parents;
   t->op = RECIPROCAL;
   t->_backwards = &_reciprocal_backwards;

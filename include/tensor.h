@@ -100,27 +100,27 @@ tt* tt_linear_init(ttuple* shape, int in_features, bool requires_grad);
 tt* tt_conv_init(ttuple* shape, int in_channels, int kernel_size, bool requires_grad);
 
 // ops
-tt *tt_add(tt *a, tt *b);
-tt *tt_sub(tt *a, tt *b);
-tt *tt_mul(tt *a, tt *b);
-tt *tt_sum(tt *a, int axis);
-tt *tt_relu(tt *a);
-tt *tt_reshape(tt *a, ttuple *new_shape);
-tt *tt_neg(tt *a);
-tt *tt_expand(tt *a, uint64_t axis, uint64_t amount);
-tt *tt_maxpool2d(tt *input, int kernel_size);
-tt *tt_conv2d(tt *input, tt *kernels);
-tt *tt_matmul(tt *input, tt *other);
-tt* tt_square(tt* input);
-tt* tt_sqrt(tt* input);
-tt* tt_exp(tt* input);
-tt* tt_log(tt* input);
-tt *tt_reciprocal(tt *a);
+tt *tt_add(tt *a, tt *b, bool track_grads);
+tt *tt_sub(tt *a, tt *b, bool track_grads);
+tt *tt_mul(tt *a, tt *b, bool track_grads);
+tt *tt_sum(tt *a, int axis, bool track_grads);
+tt *tt_relu(tt *a, bool track_grads);
+tt *tt_reshape(tt *a, ttuple *new_shape, bool track_grads);
+tt *tt_expand(tt *a, uint64_t axis, uint64_t amount, bool track_grads);
+tt *tt_neg(tt *a, bool track_grads);
+tt *tt_maxpool2d(tt *input, int kernel_size, bool track_grads);
+tt *tt_matmul(tt *input, tt *other, bool track_grads);
+tt *tt_conv2d(tt *input, tt *kernels, bool track_grads);
+tt* tt_square(tt* input, bool track_grads);
+tt* tt_sqrt(tt* input, bool track_grads);
+tt* tt_exp(tt* input, bool track_grads);
+tt* tt_log(tt* input, bool track_grads);
+tt *tt_reciprocal(tt *a, bool track_grads);
 
 //functions
 tt *flatten(tt *input, int start_dim);
 tt *mean(tt *input, int axis);
-tt *variance(tt *input, int axis, int correction); // FIXME:
+// tt *variance(tt *input, int axis, int correction); // FIXME:
 tt *sparse_categorical_cross_entropy(tt *input, tt *Y);
 
 //helpers

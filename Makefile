@@ -14,7 +14,7 @@ LDFLAGS= -lm
 COMMON= -Iinclude/ -Isrc/
 CFLAGS=-Wall
 
-EXAMPLE=./examples/mnist.c
+EXAMPLE=./examples/example.c
 EXEC=example
 EXECDIR=./build
 
