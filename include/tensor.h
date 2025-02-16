@@ -48,25 +48,22 @@ void intarray_free(intarray *s);
 void intarray_print(intarray *s);
 intarray* intarray_add_one(intarray* s);
 
-// intarray* intarray_permute(intarray* shape, intarray* axes);
-// bool tshape_duplicates(struct tshape* axes);
-
 typedef struct {
   float *buffer;
   uint64_t refcount;
   uint64_t size;
-} tstorage;
+} storage;
 
 typedef struct {
   intarray *shape;
   intarray *strides;
   uint64_t offset;
-} tview;
+} view;
 
 typedef struct tt tt;
 struct tt {
-  tstorage *data;
-  tview *view;
+  storage *data;
+  view *view;
 
   tt **parents;
   void (*_backwards)(tt *);
@@ -93,7 +90,7 @@ tt *tt_copy(tt *original, bool requires_grad);
 void tt_to_zeros(tt *t);
 void tt_to_n(tt *t, float n);
 void tt_print(tt *t, bool show_buffer, bool show_grads);
-tt *tt_view(tt *tensor, tview *view);
+tt *tt_view(tt *tensor, view *view);
 void tt_free(tt *t);
 bool tt_equal(tt* a, tt*b);
 tt* tt_linear_init(intarray* shape, int in_features, bool requires_grad);
@@ -156,6 +153,5 @@ toptimizer *toptimizer_build(tt **params, uint64_t size,
                              toptimizer_params *opt_params,
                              void (*step)(toptimizer *));
 void toptimizer_free(toptimizer *topt);
-
 
 #endif

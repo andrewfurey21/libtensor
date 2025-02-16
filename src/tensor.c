@@ -19,17 +19,17 @@
 // double check backwards functions are accumulating gradients and not just
 // reseting them
 
-tstorage *tstorage_new(uint64_t buffer_length) {
+storage *storage_new(uint64_t buffer_length) {
   float *buffer = (float *)calloc(buffer_length, sizeof(float));
-  tstorage *storage = (tstorage *)malloc(sizeof(tstorage));
-  storage->buffer = buffer;
-  storage->refcount = 1;
-  storage->size = buffer_length;
-  return storage;
+  storage *s = (storage *)malloc(sizeof(storage));
+  s->buffer = buffer;
+  s->refcount = 1;
+  s->size = buffer_length;
+  return s;
 }
 
 // maybe not a good idea memory wise but whatever
-tstorage *tstorage_from_buffer(uint64_t size, float *buffer) {
+storage *storage_from_buffer(uint64_t size, float *buffer) {
   // TODO: check if this works
   //
   // uint64_t size = malloc_usable_size(buffer)/sizeof(float);
@@ -37,48 +37,48 @@ tstorage *tstorage_from_buffer(uint64_t size, float *buffer) {
   for (int i = 0; i < size; i++) {
     buffer_copy[i] = buffer[i];
   }
-  tstorage *data = (tstorage *)malloc(sizeof(tstorage));
+  storage *data = (storage *)malloc(sizeof(storage));
   data->size = size;
   data->buffer = buffer_copy;
   data->refcount = 1;
   return data;
 }
 
-void tstorage_free(tstorage *s) {
+void storage_free(storage *s) {
   free(s->buffer);
   free(s);
 }
 
-float tstorage_getitem(tstorage *s, uint64_t index) {
+float storage_getitem(storage *s, uint64_t index) {
   assert(index >= 0 && index < s->size);
   return s->buffer[index];
 }
 
-void tstorage_setitem(tstorage *s, uint64_t index, float val) {
+void storage_setitem(storage *s, uint64_t index, float val) {
   assert(index >= 0 && index < s->size);
   s->buffer[index] = val;
 }
 
-void tstorage_inc_refcount(tstorage *s) { s->refcount++; }
+void storage_inc_refcount(storage *s) { s->refcount++; }
 
-void tstorage_dec_refcount(tstorage *s) {
+void storage_dec_refcount(storage *s) {
   s->refcount--;
   if (s->refcount <= 0) {
-    tstorage_free(s);
+    storage_free(s);
   }
 }
 
-tstorage *tstorage_copy(tstorage *s) {
-  return tstorage_from_buffer(s->size, s->buffer);
+storage *storage_copy(storage *s) {
+  return storage_from_buffer(s->size, s->buffer);
 }
 
-void tstorage_to_zeros(tstorage *s) {
+void storage_to_zeros(storage *s) {
   free(s->buffer);
   s->buffer = (float *)calloc(s->size, sizeof(float));
 }
 
 // TODO: test please
-uint64_t tstorage_logical_to_physical(tt *t, intarray *logical_index) {
+uint64_t storage_logical_to_physical(tt *t, intarray *logical_index) {
   intarray *t_strides = t->view->strides;
   assert(logical_index->size == t->data->size);
   assert(logical_index->size == t_strides->size);
@@ -90,7 +90,7 @@ uint64_t tstorage_logical_to_physical(tt *t, intarray *logical_index) {
   return index + t->view->offset;
 }
 
-void tview_free(tview *view) {
+void view_free(view *view) {
   intarray_free(view->shape);
   intarray_free(view->strides);
   free(view);
@@ -101,7 +101,7 @@ tt *tt_zeros(intarray *s, bool requires_grad) {
   assert(size != 0);
 
   intarray *copy = intarray_copy(s);
-  tstorage *data = tstorage_new(size);
+  storage *data = storage_new(size);
 
   tt *grads = NULL;
   if (requires_grad) {
@@ -111,8 +111,8 @@ tt *tt_zeros(intarray *s, bool requires_grad) {
   tt *t = (tt *)malloc(sizeof(tt));
 
   // TODO: Make functions for views
-  tview *view = (tview *)malloc(sizeof(tview));
-  t->view = view;
+  view *v = (view *)malloc(sizeof(view));
+  t->view = v;
   t->view->shape = copy;
   t->view->strides = intarray_ones(copy->size);
   t->view->offset = 0;
@@ -129,21 +129,21 @@ tt *tt_zeros(intarray *s, bool requires_grad) {
 tt *tt_ones(intarray *s, bool requires_grad) {
   tt *ones = tt_zeros(s, requires_grad);
   for (size_t i = 0; i < ones->data->size; i++) {
-    tstorage_setitem(ones->data, i, 1.0f);
+    storage_setitem(ones->data, i, 1.0f);
   }
   return ones;
 }
 
 tt *tt_from_buffer(intarray *s, float *buffer, bool requires_grad) {
   uint64_t size = intarray_prod(s);
-  tstorage *data = tstorage_from_buffer(size, buffer);
+  storage *data = storage_from_buffer(size, buffer);
 
   tt *ret = (tt *)malloc(sizeof(tt));
   intarray *copy = intarray_copy(s);
   intarray *strides = intarray_ones(copy->size);
 
-  tview *view = (tview *)malloc(sizeof(tview));
-  ret->view = view;
+  view *v = (view *)malloc(sizeof(view));
+  ret->view = v;
 
   ret->view->shape = copy;
   ret->view->strides = strides;
@@ -165,8 +165,8 @@ tt *tt_from_buffer(intarray *s, float *buffer, bool requires_grad) {
 
 float tt_getindex(tt *self, intarray *s) {
   intarray *self_shape = self->view->shape->size < s->size
-                           ? intarray_add_one(self->view->shape)
-                           : self->view->shape;
+                             ? intarray_add_one(self->view->shape)
+                             : self->view->shape;
   uint64_t index = 0;
   for (int i = 0; i < s->size; i++) {
     uint64_t mul = 1;
@@ -181,8 +181,8 @@ float tt_getindex(tt *self, intarray *s) {
 
 void tt_setindex(tt *self, intarray *s, float num) {
   intarray *self_shape = self->view->shape->size < s->size
-                           ? intarray_add_one(self->view->shape)
-                           : self->view->shape;
+                             ? intarray_add_one(self->view->shape)
+                             : self->view->shape;
   uint64_t index = 0;
   for (int i = 0; i < s->size; i++) {
     uint64_t mul = 1;
@@ -198,7 +198,7 @@ void tt_setindex(tt *self, intarray *s, float num) {
 tt *tt_fill(intarray *s, float fill_value, bool requires_grad) {
   tt *t = tt_zeros(s, requires_grad);
   for (uint64_t i = 0; i < t->data->size; i++) {
-    tstorage_setitem(t->data, i, fill_value);
+    storage_setitem(t->data, i, fill_value);
   }
   return t;
 }
@@ -208,7 +208,7 @@ tt *tt_linspace(intarray *s, float min, float max, bool requires_grad) {
   tt *t = tt_zeros(s, requires_grad);
   for (uint64_t i = 0; i < t->data->size; i++) {
     float value = min + i * ((max - min) / (steps - 1));
-    tstorage_setitem(t->data, i, value);
+    storage_setitem(t->data, i, value);
   }
   return t;
 }
@@ -217,7 +217,7 @@ tt *tt_uniform(intarray *s, float min, float max, bool requires_grad) {
   tt *t = tt_zeros(s, requires_grad);
   for (uint64_t i = 0; i < t->data->size; i++) {
     float value = (float)rand() / (float)RAND_MAX * (max - min) + min;
-    tstorage_setitem(t->data, i, value);
+    storage_setitem(t->data, i, value);
   }
   return t;
 }
@@ -225,8 +225,8 @@ tt *tt_uniform(intarray *s, float min, float max, bool requires_grad) {
 tt *tt_uniformint(intarray *s, float min, float max, bool requires_grad) {
   tt *t = tt_uniform(s, min, max, requires_grad);
   for (uint64_t i = 0; i < t->data->size; i++) {
-    float value = round(tstorage_getitem(t->data, i));
-    tstorage_setitem(t->data, i, value);
+    float value = round(storage_getitem(t->data, i));
+    storage_setitem(t->data, i, value);
   }
   return t;
 }
@@ -242,13 +242,13 @@ tt *tt_copy(tt *original, bool requires_grad) {
 
   tt *t = (tt *)malloc(sizeof(tt));
 
-  tview *view = (tview *)malloc(sizeof(tview));
-  t->view = view;
+  view *v = (view *)malloc(sizeof(view));
+  t->view = v;
   t->view->shape = shape;
   t->view->strides = strides;
   t->view->offset = 0;
 
-  t->data = tstorage_copy(original->data);
+  t->data = storage_copy(original->data);
   t->requires_grad = requires_grad;
   t->parents = NULL;
   t->op = NOOP;
@@ -258,11 +258,11 @@ tt *tt_copy(tt *original, bool requires_grad) {
   return t;
 }
 
-void tt_to_zeros(tt *t) { tstorage_to_zeros(t->data); }
+void tt_to_zeros(tt *t) { storage_to_zeros(t->data); }
 
 void tt_to_n(struct tt *t, float n) {
   for (int i = 0; i < t->data->size; i++) {
-    tstorage_setitem(t->data, i, n);
+    storage_setitem(t->data, i, n);
   }
 }
 
@@ -295,8 +295,8 @@ void tt_print(tt *t, bool show_buffer, bool show_grads) {
 
 // should probably free any grads from children.
 void tt_free(tt *t) {
-  tview_free(t->view);
-  tstorage_dec_refcount(t->data);
+  view_free(t->view);
+  storage_dec_refcount(t->data);
 
   free(t->parents);
   if (t->requires_grad) {
@@ -352,7 +352,7 @@ tt *tt_add(tt *a, tt *b, bool track_grads) {
   assert(intarray_equal(a->view->shape, b->view->shape) &&
          "Tensors are not the same shape.");
   intarray *copy = intarray_copy(a->view->shape); // TODO: free copy!!
-  
+
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tt **parents = NULL;
   if (requires_grad) {
@@ -655,7 +655,8 @@ tt *tt_reshape(tt *a, intarray *new_shape, bool track_grads) {
 void _expand_backwards(tt *self) {
   // sum
   // shape should be same for tensor and their gradients
-  intarray *div = intarray_div(self->view->shape, self->parents[0]->view->shape);
+  intarray *div =
+      intarray_div(self->view->shape, self->parents[0]->view->shape);
   int expanded_axis = -1;
   for (int i = 0; i < div->size; i++) {
     if (div->items[i] != 1) {
@@ -783,8 +784,8 @@ tt *tt_neg(tt *a, bool track_grads) {
   t->_backwards = &_neg_backwards;
 
   for (uint64_t i = 0; i < a->data->size; i++) {
-    float value = tstorage_getitem(a->data, i);
-    tstorage_setitem(t->data, i, -value);
+    float value = storage_getitem(a->data, i);
+    storage_setitem(t->data, i, -value);
   }
   return t;
 }
@@ -1191,7 +1192,8 @@ tt *tt_conv2d(tt *input, tt *kernels, bool track_grads) {
   intarray *out_shape = intarray_build(4, batch_size, cout, hout, wout);
 
   tt **parents = NULL;
-  bool requires_grad = (input->requires_grad || kernels->requires_grad) && track_grads;
+  bool requires_grad =
+      (input->requires_grad || kernels->requires_grad) && track_grads;
   if (requires_grad) {
     parents = (tt **)malloc(tensor_op_operands(CONV_2D) * sizeof(tt *));
     parents[0] = input;
