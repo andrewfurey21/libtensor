@@ -57,9 +57,9 @@ void tgraph_zeroed(tgraph* net) {
 
 void tgraph_backprop(tgraph* net) {
     if (!net->training) return;
-    ttuple* unit_shape = ttuple_build(1, 1);
+    intarray* unit_shape = intarray_build(1, 1);
     tt* current = net->nodes[net->size-1];
-    assert(ttuple_equal(current->view->shape, unit_shape) && "Last tensor must be scalar");
+    assert(intarray_equal(current->view->shape, unit_shape) && "Last tensor must be scalar");
     assert(current->requires_grad && "Can't do backprop on tensor without grads");
     free(unit_shape);
 

@@ -3,7 +3,7 @@
 
 tt *flatten(tt *input, int start_dim) {
   assert(start_dim >= 0 && start_dim < input->view->shape->size);
-  ttuple *new_shape = ttuple_zeros(start_dim + 1);
+  intarray *new_shape = intarray_zeros(start_dim + 1);
   uint64_t end = 1;
   for (int i = 0; i < input->view->shape->size; i++) {
     if (i >= start_dim) {
@@ -20,7 +20,7 @@ tt *flatten(tt *input, int start_dim) {
 tt *mean(tt *input, int axis) {
   int size;
   if (axis == -1) {
-    size = ttuple_prod(input->view->shape);
+    size = intarray_prod(input->view->shape);
   } else {
     size = input->view->shape->items[axis];
   }
@@ -76,9 +76,9 @@ tt *log_softmax(tt *input) {
   tt *sum_exp_input = tt_sum(exp_input, -1, input->requires_grad);
   tt *log_sum_exp_input = tt_log(sum_exp_input, input->requires_grad);
   tt *expanded = tt_expand(log_sum_exp_input, 0, input->data->size, input->requires_grad);
-  ttuple *new_shape = ttuple_build(1, input->view->shape->items[1], input->requires_grad);
+  intarray *new_shape = intarray_build(1, input->view->shape->items[1], input->requires_grad);
   tt *reshaped_input = tt_reshape(input, new_shape, input->requires_grad);
-  ttuple_free(new_shape);
+  intarray_free(new_shape);
   return tt_sub(reshaped_input, expanded, input->requires_grad);
 }
 
@@ -92,10 +92,10 @@ tt *log_softmax(tt *input) {
 //
 //   assert(input_width == weights_height);
 //
-//   ttuple *new_input_shape = ttuple_build(3, input_height, input_width, 1);
+//   intarray *new_input_shape = intarray_build(3, input_height, input_width, 1);
 //   tt *reshaped_input = tt_reshape(input, new_input_shape);
 //
-//   ttuple *new_weights_shape = ttuple_build(3, 1, weights_height, weights_width);
+//   intarray *new_weights_shape = intarray_build(3, 1, weights_height, weights_width);
 //   tt *reshaped_weights = tt_reshape(weights, new_weights_shape);
 //
 //   tt *expanded_input = tt_expand(reshaped_input, 2, weights_width);
@@ -105,7 +105,7 @@ tt *log_softmax(tt *input) {
 //
 //   tt *output = tt_sum(mul, 1);
 //
-//   ttuple *new_output_shape = ttuple_zeros(2);
+//   intarray *new_output_shape = intarray_zeros(2);
 //   new_output_shape->items[0] = output->view->shape->items[0];
 //   new_output_shape->items[1] = output->view->shape->items[2];
 //

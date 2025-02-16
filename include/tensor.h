@@ -34,21 +34,21 @@ void print_tensor_op(tensor_op op);
 typedef struct {
   int32_t *items;
   uint32_t size;
-} ttuple;
+} intarray;
 
-ttuple *ttuple_build(uint32_t size, ...);
-ttuple *ttuple_zeros(uint32_t size);
-ttuple *ttuple_ones(uint32_t size);
-ttuple *ttuple_add(ttuple *a, ttuple *b);
-uint64_t ttuple_prod(ttuple *s);
-ttuple *ttuple_copy(ttuple *other);
-bool ttuple_equal(ttuple *a, ttuple *b);
-ttuple *ttuple_div(ttuple *a, ttuple *b);
-void ttuple_free(ttuple *s);
-void ttuple_print(ttuple *s);
-ttuple* ttuple_add_one(ttuple* s);
+intarray *intarray_build(uint32_t size, ...);
+intarray *intarray_zeros(uint32_t size);
+intarray *intarray_ones(uint32_t size);
+intarray *intarray_add(intarray *a, intarray *b);
+uint64_t intarray_prod(intarray *s);
+intarray *intarray_copy(intarray *other);
+bool intarray_equal(intarray *a, intarray *b);
+intarray *intarray_div(intarray *a, intarray *b);
+void intarray_free(intarray *s);
+void intarray_print(intarray *s);
+intarray* intarray_add_one(intarray* s);
 
-// ttuple* ttuple_permute(ttuple* shape, ttuple* axes);
+// intarray* intarray_permute(intarray* shape, intarray* axes);
 // bool tshape_duplicates(struct tshape* axes);
 
 typedef struct {
@@ -58,8 +58,8 @@ typedef struct {
 } tstorage;
 
 typedef struct {
-  ttuple *shape;
-  ttuple *strides;
+  intarray *shape;
+  intarray *strides;
   uint64_t offset;
 } tview;
 
@@ -79,15 +79,15 @@ struct tt {
 // TODO: empty, logical index to physical index, setitem/item, arange, tostring
 // (cache in repr, use inside print), view/reshape
 
-tt *tt_zeros(ttuple *s, bool requires_grad);
-tt *tt_ones(ttuple *s, bool requires_grad);
-tt *tt_from_buffer(ttuple *s, float *buffer, bool requires_grads);
-float tt_getindex(tt *self, ttuple *s);
-void tt_setindex(tt *self, ttuple *s, float num);
-tt *tt_fill(ttuple *s, float fill_value, bool requires_grad);
-tt *tt_linspace(ttuple *s, float min, float max, bool requires_grad);
-tt *tt_uniform(ttuple *s, float min, float max, bool requires_grad);
-tt *tt_uniformint(ttuple *s, float min, float max, bool requires_grad);
+tt *tt_zeros(intarray *s, bool requires_grad);
+tt *tt_ones(intarray *s, bool requires_grad);
+tt *tt_from_buffer(intarray *s, float *buffer, bool requires_grads);
+float tt_getindex(tt *self, intarray *s);
+void tt_setindex(tt *self, intarray *s, float num);
+tt *tt_fill(intarray *s, float fill_value, bool requires_grad);
+tt *tt_linspace(intarray *s, float min, float max, bool requires_grad);
+tt *tt_uniform(intarray *s, float min, float max, bool requires_grad);
+tt *tt_uniformint(intarray *s, float min, float max, bool requires_grad);
 void tt_copy_buffer(tt *dest, tt *src);
 tt *tt_copy(tt *original, bool requires_grad);
 void tt_to_zeros(tt *t);
@@ -96,8 +96,8 @@ void tt_print(tt *t, bool show_buffer, bool show_grads);
 tt *tt_view(tt *tensor, tview *view);
 void tt_free(tt *t);
 bool tt_equal(tt* a, tt*b);
-tt* tt_linear_init(ttuple* shape, int in_features, bool requires_grad);
-tt* tt_conv_init(ttuple* shape, int in_channels, int kernel_size, bool requires_grad);
+tt* tt_linear_init(intarray* shape, int in_features, bool requires_grad);
+tt* tt_conv_init(intarray* shape, int in_channels, int kernel_size, bool requires_grad);
 
 // ops
 tt *tt_add(tt *a, tt *b, bool track_grads);
@@ -105,7 +105,7 @@ tt *tt_sub(tt *a, tt *b, bool track_grads);
 tt *tt_mul(tt *a, tt *b, bool track_grads);
 tt *tt_sum(tt *a, int axis, bool track_grads);
 tt *tt_relu(tt *a, bool track_grads);
-tt *tt_reshape(tt *a, ttuple *new_shape, bool track_grads);
+tt *tt_reshape(tt *a, intarray *new_shape, bool track_grads);
 tt *tt_expand(tt *a, uint64_t axis, uint64_t amount, bool track_grads);
 tt *tt_neg(tt *a, bool track_grads);
 tt *tt_maxpool2d(tt *input, int kernel_size, bool track_grads);
