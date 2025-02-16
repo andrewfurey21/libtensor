@@ -116,7 +116,7 @@ tensor* tensor_log(tensor* input, bool track_grads);
 tensor *tensor_reciprocal(tensor *a, bool track_grads);
 
 //functions
-tensor *flatensoren(tensor *input, int start_dim);
+tensor *flatten(tensor *input, int start_dim);
 tensor *mean(tensor *input, int axis);
 // tensor *variance(tensor *input, int axis, int correction); // FIXME:
 tensor *sparse_categorical_cross_entropy(tensor *input, tensor *Y);
@@ -130,13 +130,13 @@ typedef struct {
   struct tensor **nodes;
   size_t size;
   bool training;
-} tgraph;
+} graph;
 
-tgraph *tgraph_build(tensor *x);
-void tgraph_free(tgraph *net);
-void tgraph_zeroed(tgraph *net);
-void tgraph_backprop(tgraph *net);
-void tgraph_print(tgraph *net, bool no_buffer, bool show_grads);
+graph *graph_build(tensor *x);
+void graph_free(graph *net);
+void graph_zeroed(graph *net);
+void graph_backprop(graph *net);
+void graph_print(graph *net, bool no_buffer, bool show_grads);
 
 // nn
 typedef struct {
@@ -145,7 +145,7 @@ typedef struct {
 
 typedef struct optimizer optimizer;
 struct optimizer {
-  tgraph *net;
+  graph *net;
   toptimizer_params *opt_params;
   void (*step)(optimizer *optim);
 };

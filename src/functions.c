@@ -1,7 +1,7 @@
 #include "assert.h"
 #include "../include/tensor.h"
 
-tensor *flatensoren(tensor *input, int start_dim) {
+tensor *flatten(tensor *input, int start_dim) {
   assert(start_dim >= 0 && start_dim < input->view->shape->size);
   intarray *new_shape = intarray_zeros(start_dim + 1);
   uint64_t end = 1;
@@ -13,8 +13,8 @@ tensor *flatensoren(tensor *input, int start_dim) {
     }
   }
   new_shape->items[start_dim] = end;
-  tensor *flatensorened = tensor_reshape(input, new_shape, input->requires_grad);
-  return flatensorened;
+  tensor *flattened = tensor_reshape(input, new_shape, input->requires_grad);
+  return flattened;
 }
 
 tensor *mean(tensor *input, int axis) {
