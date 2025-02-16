@@ -60,65 +60,66 @@ typedef struct {
   uint64_t offset;
 } view;
 
-typedef struct tt tt;
-struct tt {
+
+typedef struct tensor tensor;
+struct tensor {
   storage *data;
   view *view;
 
-  tt **parents;
-  void (*_backwards)(tt *);
+  tensor **parents;
+  void (*_backwards)(tensor *);
   tensor_op op;
 
   bool requires_grad;
-  struct tt *grads;
+  tensor *grads;
 };
 
 // TODO: empty, logical index to physical index, setitem/item, arange, tostring
 // (cache in repr, use inside print), view/reshape
 
-tt *tt_zeros(intarray *s, bool requires_grad);
-tt *tt_ones(intarray *s, bool requires_grad);
-tt *tt_from_buffer(intarray *s, float *buffer, bool requires_grads);
-float tt_getindex(tt *self, intarray *s);
-void tt_setindex(tt *self, intarray *s, float num);
-tt *tt_fill(intarray *s, float fill_value, bool requires_grad);
-tt *tt_linspace(intarray *s, float min, float max, bool requires_grad);
-tt *tt_uniform(intarray *s, float min, float max, bool requires_grad);
-tt *tt_uniformint(intarray *s, float min, float max, bool requires_grad);
-void tt_copy_buffer(tt *dest, tt *src);
-tt *tt_copy(tt *original, bool requires_grad);
-void tt_to_zeros(tt *t);
-void tt_to_n(tt *t, float n);
-void tt_print(tt *t, bool show_buffer, bool show_grads);
-tt *tt_view(tt *tensor, view *view);
-void tt_free(tt *t);
-bool tt_equal(tt* a, tt*b);
-tt* tt_linear_init(intarray* shape, int in_features, bool requires_grad);
-tt* tt_conv_init(intarray* shape, int in_channels, int kernel_size, bool requires_grad);
+tensor *tensor_zeros(intarray *s, bool requires_grad);
+tensor *tensor_ones(intarray *s, bool requires_grad);
+tensor *tensor_from_buffer(intarray *s, float *buffer, bool requires_grads);
+float tensor_getindex(tensor *self, intarray *s);
+void tensor_setindex(tensor *self, intarray *s, float num);
+tensor *tensor_fill(intarray *s, float fill_value, bool requires_grad);
+tensor *tensor_linspace(intarray *s, float min, float max, bool requires_grad);
+tensor *tensor_uniform(intarray *s, float min, float max, bool requires_grad);
+tensor *tensor_uniformint(intarray *s, float min, float max, bool requires_grad);
+void tensor_copy_buffer(tensor *dest, tensor *src);
+tensor *tensor_copy(tensor *original, bool requires_grad);
+void tensor_to_zeros(tensor *t);
+void tensor_to_n(tensor *t, float n);
+void tensor_print(tensor *t, bool show_buffer, bool show_grads);
+tensor *tensor_view(tensor *tensor, view *view);
+void tensor_free(tensor *t);
+bool tensor_equal(tensor* a, tensor*b);
+tensor* tensor_linear_init(intarray* shape, int in_features, bool requires_grad);
+tensor* tensor_conv_init(intarray* shape, int in_channels, int kernel_size, bool requires_grad);
 
 // ops
-tt *tt_add(tt *a, tt *b, bool track_grads);
-tt *tt_sub(tt *a, tt *b, bool track_grads);
-tt *tt_mul(tt *a, tt *b, bool track_grads);
-tt *tt_sum(tt *a, int axis, bool track_grads);
-tt *tt_relu(tt *a, bool track_grads);
-tt *tt_reshape(tt *a, intarray *new_shape, bool track_grads);
-tt *tt_expand(tt *a, uint64_t axis, uint64_t amount, bool track_grads);
-tt *tt_neg(tt *a, bool track_grads);
-tt *tt_maxpool2d(tt *input, int kernel_size, bool track_grads);
-tt *tt_matmul(tt *input, tt *other, bool track_grads);
-tt *tt_conv2d(tt *input, tt *kernels, bool track_grads);
-tt* tt_square(tt* input, bool track_grads);
-tt* tt_sqrt(tt* input, bool track_grads);
-tt* tt_exp(tt* input, bool track_grads);
-tt* tt_log(tt* input, bool track_grads);
-tt *tt_reciprocal(tt *a, bool track_grads);
+tensor *tensor_add(tensor *a, tensor *b, bool track_grads);
+tensor *tensor_sub(tensor *a, tensor *b, bool track_grads);
+tensor *tensor_mul(tensor *a, tensor *b, bool track_grads);
+tensor *tensor_sum(tensor *a, int axis, bool track_grads);
+tensor *tensor_relu(tensor *a, bool track_grads);
+tensor *tensor_reshape(tensor *a, intarray *new_shape, bool track_grads);
+tensor *tensor_expand(tensor *a, uint64_t axis, uint64_t amount, bool track_grads);
+tensor *tensor_neg(tensor *a, bool track_grads);
+tensor *tensor_maxpool2d(tensor *input, int kernel_size, bool track_grads);
+tensor *tensor_matmul(tensor *input, tensor *other, bool track_grads);
+tensor *tensor_conv2d(tensor *input, tensor *kernels, bool track_grads);
+tensor* tensor_square(tensor* input, bool track_grads);
+tensor* tensor_sqrt(tensor* input, bool track_grads);
+tensor* tensor_exp(tensor* input, bool track_grads);
+tensor* tensor_log(tensor* input, bool track_grads);
+tensor *tensor_reciprocal(tensor *a, bool track_grads);
 
 //functions
-tt *flatten(tt *input, int start_dim);
-tt *mean(tt *input, int axis);
-// tt *variance(tt *input, int axis, int correction); // FIXME:
-tt *sparse_categorical_cross_entropy(tt *input, tt *Y);
+tensor *flatensoren(tensor *input, int start_dim);
+tensor *mean(tensor *input, int axis);
+// tensor *variance(tensor *input, int axis, int correction); // FIXME:
+tensor *sparse_categorical_cross_entropy(tensor *input, tensor *Y);
 
 //helpers
 int randi(int min, int max);
@@ -126,12 +127,12 @@ int envvar(const char *name, int default_value);
 
 // computational graph
 typedef struct {
-  struct tt **nodes;
+  struct tensor **nodes;
   size_t size;
   bool training;
 } tgraph;
 
-tgraph *tgraph_build(tt *x);
+tgraph *tgraph_build(tensor *x);
 void tgraph_free(tgraph *net);
 void tgraph_zeroed(tgraph *net);
 void tgraph_backprop(tgraph *net);
@@ -142,16 +143,16 @@ typedef struct {
   float learning_rate;
 } toptimizer_params;
 
-typedef struct toptimizer toptimizer;
-struct toptimizer {
+typedef struct optimizer optimizer;
+struct optimizer {
   tgraph *net;
   toptimizer_params *opt_params;
-  void (*step)(toptimizer *optim);
+  void (*step)(optimizer *optim);
 };
 
-toptimizer *toptimizer_build(tt **params, uint64_t size,
-                             toptimizer_params *opt_params,
-                             void (*step)(toptimizer *));
-void toptimizer_free(toptimizer *topt);
+// optimizer *toptimizer_build(tensor **params, uint64_t size,
+//                              toptimizer_params *opt_params,
+//                              void (*step)(optimizer *));
+// void toptimizer_free(optimizer *opt);
 
 #endif

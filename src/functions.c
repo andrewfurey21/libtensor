@@ -1,7 +1,7 @@
 #include "assert.h"
 #include "../include/tensor.h"
 
-tt *flatten(tt *input, int start_dim) {
+tensor *flatensoren(tensor *input, int start_dim) {
   assert(start_dim >= 0 && start_dim < input->view->shape->size);
   intarray *new_shape = intarray_zeros(start_dim + 1);
   uint64_t end = 1;
@@ -13,77 +13,77 @@ tt *flatten(tt *input, int start_dim) {
     }
   }
   new_shape->items[start_dim] = end;
-  tt *flattened = tt_reshape(input, new_shape, input->requires_grad);
-  return flattened;
+  tensor *flatensorened = tensor_reshape(input, new_shape, input->requires_grad);
+  return flatensorened;
 }
 
-tt *mean(tt *input, int axis) {
+tensor *mean(tensor *input, int axis) {
   int size;
   if (axis == -1) {
     size = intarray_prod(input->view->shape);
   } else {
     size = input->view->shape->items[axis];
   }
-  tt *summed = tt_sum(input, axis, input->requires_grad);
-  tt *div = tt_fill(summed->view->shape, 1.0f / size, true);
-  return tt_mul(summed, div, input->requires_grad);
+  tensor *summed = tensor_sum(input, axis, input->requires_grad);
+  tensor *div = tensor_fill(summed->view->shape, 1.0f / size, true);
+  return tensor_mul(summed, div, input->requires_grad);
 }
 
-// tt *variance(tt *input, int axis, int correction) {
-//   tt *m = mean(input, axis);
-//   tt *expanded_m = tt_expand(m, axis, input->view->shape->items[axis]);
-//   tt *sub = tt_sub(input, expanded_m);
+// tensor *variance(tensor *input, int axis, int correction) {
+//   tensor *m = mean(input, axis);
+//   tensor *expanded_m = tensor_expand(m, axis, input->view->shape->items[axis]);
+//   tensor *sub = tensor_sub(input, expanded_m);
 //
-//   tt *sq = tt_square(sub);
-//   tt *sum = tt_sum(sq, axis);
+//   tensor *sq = tensor_square(sub);
+//   tensor *sum = tensor_sum(sq, axis);
 //
-//   tt *number =
-//       tt_fill(sum->view->shape,
+//   tensor *number =
+//       tensor_fill(sum->view->shape,
 //               1.0f / (input->view->shape->items[axis] - correction), false);
 //
-//   return tt_mul(sum, number);
+//   return tensor_mul(sum, number);
 // }
 
 // torch gives out if out of bounds, tinygrad doesnt.
 // we give out.
-tt *sparse_categorical_cross_entropy(tt *input, tt *Y) {
+tensor *sparse_categorical_cross_entropy(tensor *input, tensor *Y) {
   assert(Y->view->shape->size == 1);
   // assert(input->view->shape->size == 2);
   // assert(Y->view->shape->items[0] == input->view->shape->items[0]);
 
-  tt *one_hot_y = tt_zeros(input->view->shape, false);
+  tensor *one_hot_y = tensor_zeros(input->view->shape, false);
   for (int i = 0; i < Y->view->shape->items[0]; i++) {
     int position = (int)Y->data->buffer[i];
     assert(position >= 0 && position < input->view->shape->items[1]);
     one_hot_y->data->buffer[i * input->view->shape->items[1] + position] = 1;
   }
 
-  tt *guesses = tt_mul(input, one_hot_y, input->requires_grad);
-  tt *no_zeros = tt_sum(guesses, -1, input->requires_grad);
+  tensor *guesses = tensor_mul(input, one_hot_y, input->requires_grad);
+  tensor *no_zeros = tensor_sum(guesses, -1, input->requires_grad);
 
-  tt *exp_all = tt_exp(input, input->requires_grad);
-  tt *sum_all = tt_sum(exp_all, -1, input->requires_grad);
-  tt *log_sum_all = tt_log(sum_all, input->requires_grad);
+  tensor *exp_all = tensor_exp(input, input->requires_grad);
+  tensor *sum_all = tensor_sum(exp_all, -1, input->requires_grad);
+  tensor *log_sum_all = tensor_log(sum_all, input->requires_grad);
 
-  tt *sub = tt_sub(log_sum_all, no_zeros, input->requires_grad);
+  tensor *sub = tensor_sub(log_sum_all, no_zeros, input->requires_grad);
   return mean(sub, -1);
 }
 
 // takes a vector! (1, n)
 // TODO: double check gradients work
-tt *log_softmax(tt *input) {
-  tt *exp_input = tt_exp(input, input->requires_grad);
-  tt *sum_exp_input = tt_sum(exp_input, -1, input->requires_grad);
-  tt *log_sum_exp_input = tt_log(sum_exp_input, input->requires_grad);
-  tt *expanded = tt_expand(log_sum_exp_input, 0, input->data->size, input->requires_grad);
+tensor *log_softmax(tensor *input) {
+  tensor *exp_input = tensor_exp(input, input->requires_grad);
+  tensor *sum_exp_input = tensor_sum(exp_input, -1, input->requires_grad);
+  tensor *log_sum_exp_input = tensor_log(sum_exp_input, input->requires_grad);
+  tensor *expanded = tensor_expand(log_sum_exp_input, 0, input->data->size, input->requires_grad);
   intarray *new_shape = intarray_build(1, input->view->shape->items[1], input->requires_grad);
-  tt *reshaped_input = tt_reshape(input, new_shape, input->requires_grad);
+  tensor *reshaped_input = tensor_reshape(input, new_shape, input->requires_grad);
   intarray_free(new_shape);
-  return tt_sub(reshaped_input, expanded, input->requires_grad);
+  return tensor_sub(reshaped_input, expanded, input->requires_grad);
 }
 
 // 2d matmul
-// tt *linear_layer(tt *input, tt *weights) {
+// tensor *linear_layer(tensor *input, tensor *weights) {
 //   int input_width = input->view->shape->items[1];
 //   int input_height = input->view->shape->items[0];
 //
@@ -93,22 +93,22 @@ tt *log_softmax(tt *input) {
 //   assert(input_width == weights_height);
 //
 //   intarray *new_input_shape = intarray_build(3, input_height, input_width, 1);
-//   tt *reshaped_input = tt_reshape(input, new_input_shape);
+//   tensor *reshaped_input = tensor_reshape(input, new_input_shape);
 //
 //   intarray *new_weights_shape = intarray_build(3, 1, weights_height, weights_width);
-//   tt *reshaped_weights = tt_reshape(weights, new_weights_shape);
+//   tensor *reshaped_weights = tensor_reshape(weights, new_weights_shape);
 //
-//   tt *expanded_input = tt_expand(reshaped_input, 2, weights_width);
-//   tt *expanded_weights = tt_expand(reshaped_weights, 0, input_height);
+//   tensor *expanded_input = tensor_expand(reshaped_input, 2, weights_width);
+//   tensor *expanded_weights = tensor_expand(reshaped_weights, 0, input_height);
 //
-//   tt *mul = tt_mul(expanded_input, expanded_weights);
+//   tensor *mul = tensor_mul(expanded_input, expanded_weights);
 //
-//   tt *output = tt_sum(mul, 1);
+//   tensor *output = tensor_sum(mul, 1);
 //
 //   intarray *new_output_shape = intarray_zeros(2);
 //   new_output_shape->items[0] = output->view->shape->items[0];
 //   new_output_shape->items[1] = output->view->shape->items[2];
 //
-//   tt *reshaped_output = tt_reshape(output, new_output_shape);
+//   tensor *reshaped_output = tensor_reshape(output, new_output_shape);
 //   return reshaped_output;
 // }

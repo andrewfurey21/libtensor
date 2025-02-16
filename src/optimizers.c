@@ -1,7 +1,7 @@
 #include "../include/tensor.h"
 #include "assert.h"
 
-void tsgd(toptimizer *optim) { // maybe just opt_params and net.
+// void sgd(optimizer *optim) { // maybe just opt_params and net.
   // for (uint64_t i = 0; i < optim->net->size; i++) {
     // tt *t = optim->net->nodes[i];
     //
@@ -16,22 +16,22 @@ void tsgd(toptimizer *optim) { // maybe just opt_params and net.
     // tt_free(updated_grads);
     // tt_free(updated_params);
   // }
-}
+// }
 
-toptimizer *toptimizer_create(tgraph *net, uint64_t size,
-                              toptimizer_params *opt_params,
-                              void (*step)(toptimizer *)) {
-  // assert(lr > 0 && lr <= 1 && "Learning rate should be between 0 and 1.");
-  //  TODO: free/copy opt_params, check lrs etc.
-  assert(size > 0 && "Must have 1 or more param.");
-  toptimizer *optim = (toptimizer *)malloc(sizeof(toptimizer));
-  optim->net = net;
-  optim->opt_params = opt_params;
-  optim->step = step;
-  return optim;
-}
-
-void toptimizer_free(toptimizer *topt) {
-  free(topt); // dont free net
-}
+// optimizer *optimizer_create(tgraph *net, uint64_t size,
+//                               toptimizer_params *opt_params,
+//                               void (*step)(optimizer *)) {
+//   // assert(lr > 0 && lr <= 1 && "Learning rate should be between 0 and 1.");
+//   //  TODO: free/copy opt_params, check lrs etc.
+//   assert(size > 0 && "Must have 1 or more param.");
+//   optimizer *optim = (optimizer *)malloc(sizeof(optimizer));
+//   optim->net = net;
+//   optim->opt_params = opt_params;
+//   optim->step = step;
+//   return optim;
+// }
+//
+// void toptimizer_free(optimizer *opt) {
+//   free(opt); // dont free net
+// }
 
