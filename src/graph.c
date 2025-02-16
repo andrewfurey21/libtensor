@@ -14,7 +14,7 @@ bool already_visited(tgraph* net, tt* t) {
 }
 
 void topo_sort(tgraph* net, tt* current) {
-    for (size_t i = 0; i < top_radix(current->op); i++) {
+    for (size_t i = 0; i < tensor_op_operands(current->op); i++) {
         tt* parent = current->parents[i];
         if (!already_visited(net, parent) && parent->requires_grad) {//all tensors in graph require grads
             topo_sort(net, parent);

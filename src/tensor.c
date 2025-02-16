@@ -273,7 +273,7 @@ void tt_print(tt *t, bool show_buffer, bool show_grads) {
   }
   ttuple_print(t->view->shape);
   if (t->requires_grad) {
-    print_op_string(t->op);
+    print_tensor_op(t->op);
   }
   if (show_buffer) {
     printf("values: [ ");
@@ -305,12 +305,12 @@ void tt_free(tt *t) {
   free(t);
 }
 
-void tt_free_parents(tt *t) {
-  for (int i = 0; i < top_radix(t->op); i++) {
-    tt_free(t->parents[i]);
-  }
-  free(t->parents);
-}
+// void tt_free_parents(tt *t) {
+//   for (int i = 0; i < tensor_op_operands(t->op); i++) {
+//     tt_free(t->parents[i]);
+//   }
+//   free(t->parents);
+// }
 
 bool tt_equal(tt *a, tt *b) {
   assert(ttuple_equal(a->view->shape, b->view->shape));
@@ -356,7 +356,7 @@ tt *tt_add(tt *a, tt *b, bool track_grads) {
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tt **parents = NULL;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(ADD) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(ADD) * sizeof(tt *));
     parents[0] = a;
     parents[1] = b;
   }
@@ -394,7 +394,7 @@ tt *tt_sub(tt *a, tt *b, bool track_grads) {
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tt **parents = NULL;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(SUB) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(SUB) * sizeof(tt *));
     parents[0] = a;
     parents[1] = b;
   }
@@ -435,7 +435,7 @@ tt *tt_mul(tt *a, tt *b, bool track_grads) {
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tt **parents = NULL;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(MUL) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(MUL) * sizeof(tt *));
     parents[0] = a;
     parents[1] = b;
   }
@@ -532,7 +532,7 @@ tt *tt_sum(tt *a, int axis, bool track_grads) {
   bool requires_grad = a->requires_grad && track_grads;
   tt **parents = NULL;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(SUM_REDUCE) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(SUM_REDUCE) * sizeof(tt *));
     parents[0] = a;
   }
 
@@ -603,7 +603,7 @@ tt *tt_relu(tt *a, bool track_grads) {
 
   bool requires_grad = a->requires_grad && track_grads;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(RELU) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(RELU) * sizeof(tt *));
     parents[0] = a;
   }
 
@@ -636,7 +636,7 @@ tt *tt_reshape(tt *a, ttuple *new_shape, bool track_grads) {
   tt *reshaped_grads = NULL;
   bool requires_grad = a->requires_grad && track_grads;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(RESHAPE) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(RESHAPE) * sizeof(tt *));
     parents[0] = a;
     reshaped_grads = tt_reshape(a->grads, new_shape_copy, false);
   }
@@ -714,7 +714,7 @@ tt *tt_expand(tt *original_tensor, uint64_t axis, uint64_t factor,
   bool requires_grad = track_grads && original_tensor->requires_grad;
   tt **parents = NULL;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(EXPAND) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(EXPAND) * sizeof(tt *));
     parents[0] = original_tensor;
   }
 
@@ -774,7 +774,7 @@ tt *tt_neg(tt *a, bool track_grads) {
   tt *t = tt_zeros(shape, requires_grad);
   tt **parents = NULL;
   if (track_grads) {
-    parents = (tt **)malloc(top_radix(NEG) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(NEG) * sizeof(tt *));
     parents[0] = a;
   }
 
@@ -915,7 +915,7 @@ tt *tt_maxpool2d(tt *input, int kernel_size, bool track_grads) {
   tt **parents = NULL;
   bool requires_grad = input->requires_grad && track_grads;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(MAX_POOL_2D) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(MAX_POOL_2D) * sizeof(tt *));
     parents[0] = input;
   }
   tt *output = tt_zeros(new_shape, requires_grad);
@@ -998,7 +998,7 @@ tt *tt_matmul(tt *a, tt *b, bool track_grads) {
   tt **parents = NULL;
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(MATMUL) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(MATMUL) * sizeof(tt *));
     parents[0] = a;
     parents[1] = b;
   }
@@ -1193,7 +1193,7 @@ tt *tt_conv2d(tt *input, tt *kernels, bool track_grads) {
   tt **parents = NULL;
   bool requires_grad = (input->requires_grad || kernels->requires_grad) && track_grads;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(CONV_2D) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(CONV_2D) * sizeof(tt *));
     parents[0] = input;
     parents[1] = kernels;
   }
@@ -1260,7 +1260,7 @@ tt *tt_square(tt *input, bool track_grads) {
   tt **parents = NULL;
   bool requires_grad = track_grads && input->requires_grad;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(SQUARE) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(SQUARE) * sizeof(tt *));
     parents[0] = input;
   }
 
@@ -1296,7 +1296,7 @@ tt *tt_sqrt(tt *input, bool track_grads) {
   tt **parents = NULL;
   bool requires_grad = track_grads && input->requires_grad;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(SQRT) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(SQRT) * sizeof(tt *));
     parents[0] = input;
   }
   tt *t = tt_zeros(input->view->shape, requires_grad);
@@ -1321,7 +1321,7 @@ tt *tt_exp(tt *input, bool track_grads) {
   tt **parents = NULL;
   bool requires_grad = input->requires_grad && track_grads;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(EXP) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(EXP) * sizeof(tt *));
     parents[0] = input;
   }
   tt *t = tt_zeros(input->view->shape, requires_grad);
@@ -1351,7 +1351,7 @@ tt *tt_log(tt *input, bool track_grads) {
   tt **parents = NULL;
   bool requires_grad = track_grads && input->requires_grad;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(LOG) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(LOG) * sizeof(tt *));
     parents[0] = input;
   }
   tt *t = tt_zeros(input->view->shape, requires_grad);
@@ -1385,7 +1385,7 @@ tt *tt_reciprocal(tt *a, bool track_grads) {
   bool requires_grad = track_grads && a->requires_grad;
   tt **parents = NULL;
   if (requires_grad) {
-    parents = (tt **)malloc(top_radix(RECIPROCAL) * sizeof(tt *));
+    parents = (tt **)malloc(tensor_op_operands(RECIPROCAL) * sizeof(tt *));
     parents[0] = a;
   }
 

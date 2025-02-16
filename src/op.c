@@ -2,7 +2,7 @@
 #include "assert.h"
 #include "stdio.h"
 
-size_t top_radix(enum top op) {
+size_t tensor_op_operands(tensor_op op) {
   switch (op) {
   case NOOP:
     return 0;
@@ -29,7 +29,7 @@ size_t top_radix(enum top op) {
   }
 }
 
-void print_op_string(enum top op) {
+void print_tensor_op(tensor_op op) {
   switch (op) {
   case NOOP:
     printf("LEAF NODE\n");

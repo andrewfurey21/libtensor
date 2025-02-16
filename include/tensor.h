@@ -8,7 +8,7 @@
 
 #define MAX_ITEMS 4
 
-enum top { // need enough for: conv, batchnorm, maxpool, linear
+typedef enum {
   NOOP = 0,
   RELU,
   SUM_REDUCE,
@@ -26,10 +26,10 @@ enum top { // need enough for: conv, batchnorm, maxpool, linear
   SQRT,
   EXP,
   LOG,
-};
+} tensor_op;
 
-size_t top_radix(enum top);
-void print_op_string(enum top op);
+size_t tensor_op_operands(tensor_op op);
+void print_tensor_op(tensor_op op);
 
 typedef struct {
   int32_t *items;
@@ -70,7 +70,7 @@ struct tt {
 
   tt **parents;
   void (*_backwards)(tt *);
-  enum top op;
+  tensor_op op;
 
   bool requires_grad;
   struct tt *grads;
