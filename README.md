@@ -4,6 +4,8 @@
 
 Zero-dependency tensor library with automatic differentiation for deep learning.
 
+Does need GoogleTest for testing though.
+
 ## current features
 
 - [x] tensor
@@ -41,7 +43,7 @@ tgraph_backprop(comp_graph);
 
 ## future ideas
 
-- broadcasting, keepdim, proper views, strides, proper storage abstraction (like numpy)
+- broadcasting, keepdim, proper views, strides, proper storage abstraction, contiguous
 - better viz of graph
 - could totally do a refactor, might be nice to have a context like ggml. make it so that memory doesnt get reallocated when running.
 - coreops.c, ops.c, storage.c, graph.c, nn.c (neural net specific likes optimizers), extra (tuples etc)
