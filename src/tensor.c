@@ -346,8 +346,7 @@ void _add_backwards(tensor *self) {
     self->parents[1]->grads = grads_1;
   }
 }
-// TODO: need to add track_gradients
-// tensor_add(tensor* a, tensor* b, bool track_gradients);
+
 tensor *tensor_add(tensor *a, tensor *b, bool track_grads) {
   assert(intarray_equal(a->view->shape, b->view->shape) &&
          "Tensors are not the same shape.");

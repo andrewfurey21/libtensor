@@ -41,20 +41,40 @@ def draw_mnist_image(data, size=(28, 28)):
 
 
 if __name__ == "__main__":
-    a = Tensor.linspace(0, 5, 6, requires_grad=True).reshape(2, 3)
-    b = Tensor.linspace(0, 11, 12, requires_grad=True).reshape(2, 3, 2)
+    # ???
+    d = Tensor.linspace(0, 5*5-1, 5*5).reshape(1, 1, 5, 5).requires_grad_(True)
+    print("Input weights grad: ", d.requires_grad)
+    conv_weights = Tensor.linspace(0, 3*3-1, 3*3).reshape(1, 1, 3, 3).requires_grad_(True)
+    print("Conv weights grad: ", conv_weights.requires_grad)
+
+    conv = d.conv2d(conv_weights)
+
+    input_sum = d.sum()
+    conv_sum = conv.sum()
+
+    output = conv_sum #+ input_sum
+
+    print(output.numpy())
+    output.backward()
+
+
+    print(d.grad.numpy())
+    print(conv.grad)
+
+    a = Tensor.linspace(0, 5, 6).reshape(2, 3).requires_grad_(True)
+    b = Tensor.linspace(0, 11, 12).reshape(2, 3, 2).requires_grad_(True)
     c = a.matmul(b)
     s = c.sum()
     s.backward()
-
-    print("input: \n", b.numpy())
+    #
+    # print("input: \n", b.numpy())
     print("input.grad: \n", b.grad.numpy())
-
-    print("weights: \n", a.numpy())
-    print("weights.grad: \n", a.grad.numpy())
-
-    print("matmul: \n", c.numpy())
-    print("matmul.grad: \n", c.grad.numpy())
+    #
+    # print("weights: \n", a.numpy())
+    # print("weights.grad: \n", a.grad.numpy())
+    #
+    # print("matmul: \n", c.numpy())
+    # print("matmul.grad: \n", c.grad.numpy())
     # model = Model()
 
     # example = 123
