@@ -43,14 +43,8 @@ tgraph_backprop(comp_graph);
 
 ## future ideas
 
-- broadcasting, keepdim, proper views, strides, proper storage abstraction, contiguous
-- better viz of graph
-- could totally do a refactor, might be nice to have a context like ggml. make it so that memory doesnt get reallocated when running.
-- coreops.c, ops.c, storage.c, graph.c, nn.c (neural net specific likes optimizers), extra (tuples etc)
-- need graph.c?
-- could do permute+pad op, then redo maxpools/convs.
 - groups, stride, dilation, padding to maxpool + conv. Figure out how im2col works, and how tinygrad does it's convolutions
-- more functions: batchnorm, attention,, etc.
+- more functions: permute, pad, batchnorm, attention, etc.
 - import/export weights in different formats
 - proper backend system (opencl/vulkan, cuda, metal, avx/sse, triton, rocm, tenstorrent)
 - more example models (yolo, gpt, sam etc)
