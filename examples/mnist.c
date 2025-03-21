@@ -73,17 +73,17 @@ void load_mnist_batch(tensor *input_batch, tensor *output_batch,
     char *image = read_mnist_image(file_name, index);
     load_mnist_buffer(
         image, input_batch->data->buffer, output_batch->data->buffer,
-        i * intarray_prod(input_batch->view->shape) / batch_size, i);
+        i * intarray_prod(input_batch->dview->shape) / batch_size, i);
     free(image);
   }
 }
 
 void display_mnist_image(tensor *image, tensor *correct, tensor *guesses) {
   intarray *index = intarray_zeros(4);
-  for (int b = 0; b < image->view->shape->items[0]; b++) {
+  for (int b = 0; b < image->dview->shape->items[0]; b++) {
     index->items[0] = b;
     float answer = correct->data->buffer[b];
-    if (image->view->shape->items[0] > 1) {
+    if (image->dview->shape->items[0] > 1) {
       printf("Batch item #%d\n", b + 1);
     } else {
       printf("Single image\n");
@@ -95,9 +95,9 @@ void display_mnist_image(tensor *image, tensor *correct, tensor *guesses) {
       printf("\n");
     }
 
-    for (int h = 0; h < image->view->shape->items[2]; h++) {
+    for (int h = 0; h < image->dview->shape->items[2]; h++) {
       index->items[2] = h;
-      for (int w = 0; w < image->view->shape->items[3]; w++) {
+      for (int w = 0; w < image->dview->shape->items[3]; w++) {
         index->items[3] = w;
         float value = tensor_getindex(image, index);
         if (value > 150) {

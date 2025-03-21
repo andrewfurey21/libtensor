@@ -59,11 +59,11 @@ void graph_backprop(graph* net) {
     if (!net->training) return;
     intarray* unit_shape = intarray_build(1, 1);
     tensor* current = net->nodes[net->size-1];
-    assert(intarray_equal(current->view->shape, unit_shape) && "Last tensor must be scalar");
+    assert(intarray_equal(current->dview->shape, unit_shape) && "Last tensor must be scalar");
     assert(current->requires_grad && "Can't do backprop on tensor without grads");
     free(unit_shape);
 
-    tensor* grads = tensor_ones(current->view->shape, false);
+    tensor* grads = tensor_ones(current->dview->shape, false);
     tensor_free(current->grads);
     current->grads = grads;
 
