@@ -1,6 +1,215 @@
 #include "../include/tensor.h"
 #include "gtest/gtest.h"
 
+TEST(Tensor, Zeros) {
+  intarray *shape = intarray_build(4, 3, 2, 1, 1);
+  tensor *zeros = tensor_zeros(shape, false);
+
+  ASSERT_TRUE(intarray_equal(shape, zeros->dview->shape));
+  for (int i = 0; i < intarray_prod(shape); i++) {
+    EXPECT_EQ(zeros->data->buffer[i], 0) << "Found not zero";
+  }
+  EXPECT_FALSE(zeros->grads);
+  EXPECT_FALSE(zeros->requires_grad);
+  EXPECT_FALSE(zeros->parents);
+  EXPECT_EQ(zeros->op, NOOP);
+  EXPECT_FALSE(zeros->_backwards);
+
+  intarray_free(shape);
+  tensor_free(zeros);
+}
+
+TEST(Tensor, Ones) {
+  intarray *shape = intarray_build(3, 2, 2, 2);
+  tensor *ones = tensor_ones(shape, false);
+
+  ASSERT_TRUE(intarray_equal(shape, ones->dview->shape));
+  for (int i = 0; i < intarray_prod(shape); i++) {
+    EXPECT_EQ(ones->data->buffer[i], 1) << "Found not one";
+  }
+
+  EXPECT_FALSE(ones->grads);
+  EXPECT_FALSE(ones->requires_grad);
+  EXPECT_FALSE(ones->parents);
+  EXPECT_EQ(ones->op, NOOP);
+  EXPECT_FALSE(ones->_backwards);
+
+  intarray_free(shape);
+  tensor_free(ones);
+}
+
+TEST(Tensor, FromBuffer) {
+  intarray *shape = intarray_build(3, 2, 1, 4);
+  float buffer[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+  tensor *t = tensor_from_buffer(shape, buffer, false);
+
+  ASSERT_TRUE(intarray_equal(shape, t->dview->shape));
+  for (int i = 0; i < intarray_prod(shape); i++) {
+    EXPECT_EQ(t->data->buffer[i], buffer[i]) << "Found unequal";
+  }
+
+  EXPECT_FALSE(t->grads);
+  EXPECT_FALSE(t->requires_grad);
+  EXPECT_FALSE(t->parents);
+  EXPECT_EQ(t->op, NOOP);
+  EXPECT_FALSE(t->_backwards);
+
+  intarray_free(shape);
+  tensor_free(t);
+}
+
+TEST(Tensor, GetIndex) {
+  intarray *shape = intarray_build(4, 6, 5, 4, 4);
+  intarray *index = intarray_build(4, 0, 1, 2, 3);
+  tensor *t = tensor_linspace(shape, 0, 6 * 5 * 4 * 4 - 1, false);
+
+  EXPECT_EQ(tensor_getindex(t, index), 27);
+
+  intarray_free(shape);
+  intarray_free(index);
+  tensor_free(t);
+}
+
+TEST(Tensor, SetIndex) {
+  intarray *shape = intarray_build(3, 2, 3, 4);
+  intarray *index = intarray_build(3, 1, 2, 3);
+  tensor *t = tensor_zeros(shape, false);
+
+  tensor_setindex(t, index, 27);
+  EXPECT_EQ(tensor_getindex(t, index), 27);
+
+  intarray_free(shape);
+  intarray_free(index);
+  tensor_free(t);
+}
+
+TEST(Tensor, Fill) {
+  float value = 10.5f;
+  intarray *shape = intarray_build(3, 3, 3, 3);
+  tensor *t = tensor_fill(shape, value, false);
+
+  ASSERT_TRUE(intarray_equal(shape, t->dview->shape));
+  for (int i = 0; i < intarray_prod(shape); i++) {
+    EXPECT_EQ(t->data->buffer[i], value);
+  }
+
+  EXPECT_FALSE(t->grads);
+  EXPECT_FALSE(t->requires_grad);
+  EXPECT_FALSE(t->parents);
+  EXPECT_EQ(t->op, NOOP);
+  EXPECT_FALSE(t->_backwards);
+
+  intarray_free(shape);
+  tensor_free(t);
+}
+
+TEST(Tensor, Linspace) {
+  intarray *shape = intarray_build(3, 1, 3, 5);
+  tensor *t = tensor_linspace(shape, 0, 20, false);
+
+  float correct_buffer[] = {0.0,
+                     1.4285714285714286,
+                     2.857142857142857,
+                     4.285714285714286,
+                     5.714285714285714,
+                     7.142857142857143,
+                     8.571428571428571,
+                     10.0,
+                     11.428571428571429,
+                     12.857142857142858,
+                     14.285714285714286,
+                     15.714285714285715,
+                     17.142857142857142,
+                     18.571428571428573,
+                     20.0};
+
+  tensor* correct = tensor_from_buffer(shape, correct_buffer, false);
+  ASSERT_TRUE(intarray_equal(shape, t->dview->shape));
+  EXPECT_TRUE(tensor_equal(correct, t, 1e-5, 1e-8));
+
+  EXPECT_FALSE(t->grads);
+  EXPECT_FALSE(t->requires_grad);
+  EXPECT_FALSE(t->parents);
+  EXPECT_EQ(t->op, NOOP);
+  EXPECT_FALSE(t->_backwards);
+
+  if (HasFailure()) {
+    printf("Expected: \n");
+    tensor_print(correct, true, false);
+    printf("Output: \n");
+    tensor_print(t, true, false);
+  }
+
+  intarray_free(shape);
+  tensor_free(t);
+  tensor_free(correct);
+}
+
+TEST(Tensor, Copy) {
+  intarray *shape = intarray_build(3, 3, 3, 3);
+  tensor *t = tensor_ones(shape, false);
+  tensor *s = tensor_copy(t, false);
+
+  ASSERT_TRUE(intarray_equal(s->dview->shape, t->dview->shape));
+  for (int i = 0; i < intarray_prod(shape); i++) {
+    EXPECT_EQ(s->data->buffer[i], 1);
+  }
+
+  EXPECT_FALSE(t->grads);
+  EXPECT_FALSE(t->requires_grad);
+  EXPECT_FALSE(t->parents);
+  EXPECT_EQ(t->op, NOOP);
+  EXPECT_FALSE(t->_backwards);
+
+  intarray_free(shape);
+  tensor_free(t);
+  tensor_free(s);
+}
+
+TEST(Tensor, ToZeros) {
+  intarray *shape = intarray_build(3, 3, 3, 3);
+  tensor *t = tensor_ones(shape, false);
+
+  tensor_to_zeros(t);
+  for (int i = 0; i < intarray_prod(shape); i++) {
+    EXPECT_EQ(t->data->buffer[i], 0);
+  }
+
+  EXPECT_FALSE(t->grads);
+  EXPECT_FALSE(t->requires_grad);
+  EXPECT_FALSE(t->parents);
+  EXPECT_EQ(t->op, NOOP);
+  EXPECT_FALSE(t->_backwards);
+
+  intarray_free(shape);
+  tensor_free(t);
+}
+
+TEST(Tensor, ToN) {
+  float value = -19.5;
+  intarray *shape = intarray_build(3, 3, 5, 3);
+  tensor *t = tensor_ones(shape, false);
+
+  tensor_to_n(t, value);
+  for (int i = 0; i < intarray_prod(shape); i++) {
+    EXPECT_EQ(t->data->buffer[i], value);
+  }
+
+  intarray_free(shape);
+  tensor_free(t);
+}
+
+TEST(Tensor, Equal) {
+  intarray *shape = intarray_build(3, 3, 5, 3);
+  tensor *t = tensor_linspace(shape, 0, 10, false);
+  tensor *s = tensor_linspace(shape, 0, 10, false);
+
+  EXPECT_TRUE(tensor_equal(t, s, 1e-5, 1e-8));
+
+  intarray_free(shape);
+  tensor_free(t);
+}
+
 TEST(Tensor, Add3x4) {
   intarray *shape1 = intarray_build(2, 3, 4);
   float buffer1[] = {
@@ -33,6 +242,12 @@ TEST(Tensor, Add3x4) {
     printf("Output: \n");
     tensor_print(output, true, false);
   }
+
+  EXPECT_FALSE(output->grads);
+  EXPECT_FALSE(output->requires_grad);
+  EXPECT_FALSE(output->parents);
+  EXPECT_EQ(output->op, ADD);
+  EXPECT_EQ(output->_backwards, _add_backwards);
 
   intarray_free(shape1);
   tensor_free(correct);
@@ -85,6 +300,12 @@ TEST(Tensor, Add5x5) {
     printf("Output: \n");
     tensor_print(output, true, false);
   }
+
+  EXPECT_FALSE(output->grads);
+  EXPECT_FALSE(output->requires_grad);
+  EXPECT_FALSE(output->parents);
+  EXPECT_EQ(output->op, ADD);
+  EXPECT_EQ(output->_backwards, _add_backwards);
 
   intarray_free(shape1);
   tensor_free(correct);

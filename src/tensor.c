@@ -258,8 +258,11 @@ tensor *tensor_copy(tensor *original, bool requires_grad) {
   return t;
 }
 
+// where does this get used? 
+// what happens if you call this during backprop?
 void tensor_to_zeros(tensor *t) { storage_to_zeros(t->data); }
 
+// same here
 void tensor_to_n(struct tensor *t, float n) {
   for (int i = 0; i < t->data->size; i++) {
     storage_setitem(t->data, i, n);
@@ -1304,6 +1307,7 @@ tensor *tensor_sqrt(tensor *input, bool track_grads) {
   return t;
 }
 
+// TODO: inplace instead?
 void _exp_backwards(tensor *self) {
   tensor *mul = tensor_mul(self, self->grads, false);
   tensor *acc_grads = tensor_add(mul, self->parents[0]->grads, false);

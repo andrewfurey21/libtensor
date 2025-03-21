@@ -77,7 +77,7 @@ struct tensor {
   tensor *grads;
 };
 
-// TODO: empty, logical index to physical index, setitem/item, arange, tostring
+// TODO: tostring
 // (cache in repr, use inside print), view/reshape
 
 tensor *tensor_zeros(intarray *s, bool requires_grad);
@@ -90,12 +90,12 @@ tensor *tensor_linspace(intarray *s, float min, float max, bool requires_grad);
 tensor *tensor_uniform(intarray *s, float min, float max, bool requires_grad);
 tensor *tensor_uniformint(intarray *s, float min, float max,
                           bool requires_grad);
-void tensor_copy_buffer(tensor *dest, tensor *src);
+//void tensor_copy_buffer(tensor *dest, tensor *src);
 tensor *tensor_copy(tensor *original, bool requires_grad);
 void tensor_to_zeros(tensor *t);
 void tensor_to_n(tensor *t, float n);
 void tensor_print(tensor *t, bool show_buffer, bool show_grads);
-tensor *tensor_view(tensor *tensor, view *view);
+// tensor *tensor_view(tensor *tensor, view *view);
 void tensor_free(tensor *t);
 bool tensor_equal(tensor *a, tensor *b, float rtol, float atol);
 tensor *tensor_linear_init(intarray *shape, int in_features,
@@ -121,6 +121,23 @@ tensor *tensor_sqrt(tensor *input, bool track_grads);
 tensor *tensor_exp(tensor *input, bool track_grads);
 tensor *tensor_log(tensor *input, bool track_grads);
 tensor *tensor_reciprocal(tensor *a, bool track_grads);
+
+//ops backward
+void _add_backwards(tensor *self);
+void _sub_backwards(tensor *self);
+void _mul_backwards(tensor *self);
+void _sum_backwards(tensor *self);
+void _relu_backwards(tensor *self);
+void _reshape_backwards(tensor *self);
+void _expand_backwards(tensor *self);
+void _neg_backwards(tensor *self);
+void _maxpool2d_backwards(tensor *self);
+void _matmul_backwards(tensor *self);
+void _conv2d_backwards(tensor *self);
+void _square_backwards(tensor *self);
+void _exp_backwards(tensor *self);
+void _log_backwards(tensor *self);
+void _reciprocal_backwards(tensor *self);
 
 // functions
 tensor *flatten(tensor *input, int start_dim);
