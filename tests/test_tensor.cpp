@@ -1139,7 +1139,8 @@ TEST(Tensor, Log) {
   intarray *shape1 = intarray_build(2, 3, 3);
   float buffer1[] = {0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4.0};
   float correct_output[] = {
-    -INFINITY, -0.693147, 0.000000, 0.405465, 0.693147, 0.916291, 1.098612, 1.252763, 1.386294,
+      -INFINITY, -0.693147, 0.000000, 0.405465, 0.693147,
+      0.916291,  1.098612,  1.252763, 1.386294,
   };
 
   tensor *correct = tensor_from_buffer(shape1, correct_output, false);
@@ -1175,7 +1176,8 @@ TEST(Tensor, Reciprocal) {
   intarray *shape1 = intarray_build(2, 3, 3);
   float buffer1[] = {0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4.0};
   float correct_output[] = {
-    INFINITY, 2.000000, 1.000000, 0.666667, 0.500000, 0.400000, 0.333333, 0.285714, 0.250000,
+      INFINITY, 2.000000, 1.000000, 0.666667, 0.500000,
+      0.400000, 0.333333, 0.285714, 0.250000,
   };
 
   tensor *correct = tensor_from_buffer(shape1, correct_output, false);

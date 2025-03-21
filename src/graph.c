@@ -50,14 +50,13 @@ void graph_free(graph* net) {
 void graph_zeroed(graph* net) {
     if (!net->training) return;
     for (uint32_t i = 0; i < net->size; i++) {
-        struct tensor* t = net->nodes[i];
-        tensor_to_zeros(t->grads);
+        tensor_to_zeros(net->nodes[i]->grads);
     }
 }
 
 void graph_backprop(graph* net) {
     if (!net->training) return;
-    intarray* unit_shape = intarray_build(1, 1);
+    intarray* unit_shape = intarray_build(1, 1); // TODO: possible if prod()=1
     tensor* current = net->nodes[net->size-1];
     assert(intarray_equal(current->dview->shape, unit_shape) && "Last tensor must be scalar");
     assert(current->requires_grad && "Can't do backprop on tensor without grads");
