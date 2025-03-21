@@ -693,7 +693,6 @@ void _expand_backwards(tensor *self) {
   }
 }
 
-// currently, must expand, cannot contract.
 // can expand axis where dim>=1
 // basically backwards sum
 // follows broadcasting rules, cannot expand dim that isn't 1

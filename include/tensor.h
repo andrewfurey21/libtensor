@@ -135,6 +135,7 @@ void _maxpool2d_backwards(tensor *self);
 void _matmul_backwards(tensor *self);
 void _conv2d_backwards(tensor *self);
 void _square_backwards(tensor *self);
+void _sqrt_backwards(tensor *self);
 void _exp_backwards(tensor *self);
 void _log_backwards(tensor *self);
 void _reciprocal_backwards(tensor *self);
