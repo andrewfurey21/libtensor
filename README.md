@@ -10,13 +10,13 @@ Does need GoogleTest for testing though.
 
 - [x] tensor
 - [x] backwards mode autodifferentiation
-- [ ] ops
+- [x] ops
     - [x] add/sub, mul
     - [x] square, sqrt, log, exp
     - [x] reshape, flatten (just a reshape)
     - [x] sum/expand along axis
     - [x] relu
-    - [ ] matmul
+    - [x] matmul
     - [x] max pool
     - [x] convolutions
     - [x] sparse categorical cross entropy
