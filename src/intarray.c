@@ -53,20 +53,20 @@ intarray* intarray_add(intarray* a, intarray* b) {
     return ret;
 }
 
-uint64_t intarray_prod(intarray* s) {
+uint64_t intarray_prod(intarray* a) {
     uint64_t size = 1;
-    for (uint32_t i = 0; i < s->size; i++) {
-        size *= s->items[i];
+    for (uint32_t i = 0; i < a->size; i++) {
+        size *= a->items[i];
     }
     return size;
 }
 
-intarray* intarray_copy(intarray* other) {
+intarray* intarray_copy(intarray* a) {
     intarray* copy = (intarray*)malloc(sizeof(intarray));
-    copy->size = other->size;
+    copy->size = a->size;
     copy->items = (int32_t*)malloc(sizeof(int32_t) * copy->size);
     for (uint32_t i = 0; i < MAX_ITEMS || i < copy->size; i++) {
-        copy->items[i] = other->items[i];
+        copy->items[i] = a->items[i];
     }
     return copy;
 }
@@ -88,43 +88,43 @@ intarray* intarray_div(intarray* a, intarray* b) {
     return copy;
 }
 
-void intarray_free(intarray* s) {
-    free(s->items);
-    free(s);
+void intarray_free(intarray* a) {
+    free(a->items);
+    free(a);
 }
 
-void intarray_print(intarray* s) {
-    assert(s->size <= MAX_ITEMS && "Too many dimensions in tshape.");
+void intarray_print(intarray* a) {
+    assert(a->size <= MAX_ITEMS && "Too many dimensions in tshape.");
     printf("(");
-    for (size_t i = 0; i < s->size; i++) {
-        printf("%d", s->items[i]);
-        if (i < s->size - 1) printf(",");
+    for (size_t i = 0; i < a->size; i++) {
+        printf("%d", a->items[i]);
+        if (i < a->size - 1) printf(",");
     }
     printf(")\n");
 }
 
-intarray* intarray_pad_left(intarray* s, int new_size) {
-    assert(new_size >= s->size && new_size <= MAX_ITEMS);
+intarray* intarray_pad_left(intarray* a, int new_size) {
+    assert(new_size >= a->size && new_size <= MAX_ITEMS);
     intarray* new_shape = intarray_ones(new_size);
-    for (int i = new_size - s->size; i < new_shape->size; i++) {
-        new_shape->items[i] = s->items[i-(new_size-s->size)];
+    for (int i = new_size - a->size; i < new_shape->size; i++) {
+        new_shape->items[i] = a->items[i-(new_size-a->size)];
     }
     return new_shape;
 }
 
-intarray* intarray_squeeze(intarray* s) {
-    assert(s->size > 0 && s->size <= MAX_ITEMS);
+intarray* intarray_squeeze(intarray* a) {
+    assert(a->size > 0 && a->size <= MAX_ITEMS);
     int count = 0;
-    for (int i = 0; i < s->size; i++) {
-        count += s->items[i] == 1;
+    for (int i = 0; i < a->size; i++) {
+        count += a->items[i] == 1;
     }
 
-    intarray* new = intarray_zeros(s->size - count);
+    intarray* new = intarray_zeros(a->size - count);
 
     count = 0;
-    for (int i = 0; i < s->size; i++) {
-        if (s->items[i] != 1) {
-            new->items[count++] = s->items[i];
+    for (int i = 0; i < a->size; i++) {
+        if (a->items[i] != 1) {
+            new->items[count++] = a->items[i];
         }
     }
     return new;

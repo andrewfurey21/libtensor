@@ -1,6 +1,5 @@
 #include "../include/tensor.h"
 #include "assert.h"
-#include "stdio.h"
 
 view *view_new(intarray *shape) {
   intarray *copy = intarray_copy(shape);
@@ -9,12 +8,12 @@ view *view_new(intarray *shape) {
   return v;
 }
 
-uint64_t view_index(view *v, intarray *index) {
-  assert(index->size >= v->shape->size);
+uint64_t view_index(view *vw, intarray *index) {
+  assert(index->size >= vw->shape->size);
   uint64_t physical_index = 0;
-  bool pad_left = v->shape->size < index->size;
+  bool pad_left = vw->shape->size < index->size;
   intarray *padded_shape =
-      pad_left ? intarray_pad_left(v->shape, index->size) : v->shape;
+      pad_left ? intarray_pad_left(vw->shape, index->size) : vw->shape;
 
   // indexing here
   for (int i = 0; i < index->size; i++) {
@@ -25,18 +24,22 @@ uint64_t view_index(view *v, intarray *index) {
     physical_index += mul * index->items[i];
   }
 
-  assert(physical_index < intarray_prod(v->shape));
+  assert(physical_index < intarray_prod(vw->shape));
   if (pad_left) {
     intarray_free(padded_shape);
   }
   return physical_index;
 }
 
-view* view_copy(view *v) {
-  return view_new(v->shape);
+view* view_copy(view *vw) {
+  return view_new(vw->shape);
 }
 
-void view_free(view *view) {
-  intarray_free(view->shape);
-  free(view);
+bool view_equal(view *a, view *b) {
+  return intarray_equal(a->shape, b->shape);
+}
+
+void view_free(view *vw) {
+  intarray_free(vw->shape);
+  free(vw);
 }

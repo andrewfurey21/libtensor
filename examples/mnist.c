@@ -73,17 +73,17 @@ void load_mnist_batch(tensor *input_batch, tensor *output_batch,
     char *image = read_mnist_image(file_name, index);
     load_mnist_buffer(
         image, input_batch->data->buffer, output_batch->data->buffer,
-        i * intarray_prod(input_batch->v->shape) / batch_size, i);
+        i * intarray_prod(input_batch->vw->shape) / batch_size, i);
     free(image);
   }
 }
 
 void display_mnist_image(tensor *image, tensor *correct, tensor *guesses) {
   intarray *index = intarray_zeros(4);
-  for (int b = 0; b < image->v->shape->items[0]; b++) {
+  for (int b = 0; b < image->vw->shape->items[0]; b++) {
     index->items[0] = b;
     float answer = correct->data->buffer[b];
-    if (image->v->shape->items[0] > 1) {
+    if (image->vw->shape->items[0] > 1) {
       printf("Batch item #%d\n", b + 1);
     } else {
       printf("Single image\n");
@@ -95,9 +95,9 @@ void display_mnist_image(tensor *image, tensor *correct, tensor *guesses) {
       printf("\n");
     }
 
-    for (int h = 0; h < image->v->shape->items[2]; h++) {
+    for (int h = 0; h < image->vw->shape->items[2]; h++) {
       index->items[2] = h;
-      for (int w = 0; w < image->v->shape->items[3]; w++) {
+      for (int w = 0; w < image->vw->shape->items[3]; w++) {
         index->items[3] = w;
         float value = tensor_getindex(image, index);
         if (value > 150) {
@@ -122,7 +122,7 @@ typedef struct {
 
 int main(void) {
   srand(time(NULL));
-  int batch_size = envvar("BS", 8);
+  int batch_size = envvar("BS", 1);
 
   intarray *input_batch_shape = intarray_build(4, batch_size, 1, 28, 28);
   tensor *input_batch = tensor_zeros(input_batch_shape, false);
@@ -175,4 +175,6 @@ int main(void) {
   graph* network = graph_build(scalar_loss);
   graph_zeroed(network);
   graph_backprop(network);
+
+  graph_free(network);
 }

@@ -6,7 +6,7 @@ TEST(Tensor, Zeros) {
   intarray *shape = intarray_build(4, 3, 2, 1, 1);
   tensor *zeros = tensor_zeros(shape, false);
 
-  ASSERT_TRUE(intarray_equal(shape, zeros->v->shape));
+  ASSERT_TRUE(intarray_equal(shape, zeros->vw->shape));
   for (int i = 0; i < intarray_prod(shape); i++) {
     EXPECT_EQ(zeros->data->buffer[i], 0) << "Found not zero";
   }
@@ -24,7 +24,7 @@ TEST(Tensor, Ones) {
   intarray *shape = intarray_build(3, 2, 2, 2);
   tensor *ones = tensor_ones(shape, false);
 
-  ASSERT_TRUE(intarray_equal(shape, ones->v->shape));
+  ASSERT_TRUE(intarray_equal(shape, ones->vw->shape));
   for (int i = 0; i < intarray_prod(shape); i++) {
     EXPECT_EQ(ones->data->buffer[i], 1) << "Found not one";
   }
@@ -44,7 +44,7 @@ TEST(Tensor, FromBuffer) {
   float buffer[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
   tensor *t = tensor_from_buffer(shape, buffer, false);
 
-  ASSERT_TRUE(intarray_equal(shape, t->v->shape));
+  ASSERT_TRUE(intarray_equal(shape, t->vw->shape));
   for (int i = 0; i < intarray_prod(shape); i++) {
     EXPECT_EQ(t->data->buffer[i], buffer[i]) << "Found unequal";
   }
@@ -89,7 +89,7 @@ TEST(Tensor, Fill) {
   intarray *shape = intarray_build(3, 3, 3, 3);
   tensor *t = tensor_fill(shape, value, false);
 
-  ASSERT_TRUE(intarray_equal(shape, t->v->shape));
+  ASSERT_TRUE(intarray_equal(shape, t->vw->shape));
   for (int i = 0; i < intarray_prod(shape); i++) {
     EXPECT_EQ(t->data->buffer[i], value);
   }
@@ -125,7 +125,7 @@ TEST(Tensor, Linspace) {
                             20.0};
 
   tensor *correct = tensor_from_buffer(shape, correct_buffer, false);
-  ASSERT_TRUE(intarray_equal(shape, t->v->shape));
+  ASSERT_TRUE(intarray_equal(shape, t->vw->shape));
   EXPECT_TRUE(tensor_equal(correct, t, 1e-5, 1e-8));
 
   EXPECT_FALSE(t->grads);
@@ -151,7 +151,7 @@ TEST(Tensor, Copy) {
   tensor *t = tensor_ones(shape, false);
   tensor *s = tensor_copy(t, false);
 
-  ASSERT_TRUE(intarray_equal(s->v->shape, t->v->shape));
+  ASSERT_TRUE(intarray_equal(s->vw->shape, t->vw->shape));
   for (int i = 0; i < intarray_prod(shape); i++) {
     EXPECT_EQ(s->data->buffer[i], 1);
   }
@@ -234,8 +234,8 @@ TEST(Tensor, Add3x4) {
 
   tensor *output = tensor_add(tensor1, tensor2, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor1->v->shape));
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor2->v->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor1->vw->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor2->vw->shape));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
   EXPECT_TRUE(equal) << "Elementwise add failed\n";
@@ -294,8 +294,8 @@ TEST(Tensor, Add5x5) {
 
   tensor *output = tensor_add(tensor1, tensor2, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor1->v->shape));
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor2->v->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor1->vw->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor2->vw->shape));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -342,8 +342,8 @@ TEST(Tensor, Sub3x4) {
 
   tensor *output = tensor_sub(tensor1, tensor2, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor1->v->shape));
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor2->v->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor1->vw->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor2->vw->shape));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -403,8 +403,8 @@ TEST(Tensor, Sub5x5) {
 
   tensor *output = tensor_sub(tensor1, tensor2, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor1->v->shape));
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor2->v->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor1->vw->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor2->vw->shape));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -451,8 +451,8 @@ TEST(Tensor, Mul3x4) {
 
   tensor *output = tensor_mul(tensor1, tensor2, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor1->v->shape));
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor2->v->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor1->vw->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor2->vw->shape));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -512,8 +512,8 @@ TEST(Tensor, Mul5x5) {
 
   tensor *output = tensor_mul(tensor1, tensor2, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor1->v->shape));
-  ASSERT_TRUE(intarray_equal(output->v->shape, tensor2->v->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor1->vw->shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, tensor2->vw->shape));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -554,7 +554,7 @@ TEST(Tensor, Sum3x4) {
 
   tensor *output = tensor_sum(tensor1, axis, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, output_shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, output_shape));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -601,7 +601,7 @@ TEST(Tensor, Sum5x5) {
 
   tensor *output = tensor_sum(tensor1, axis, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, output_shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, output_shape));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -641,7 +641,7 @@ TEST(Tensor, Relu3x4) {
 
   tensor *output = tensor_relu(tensor1, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, shape1));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, shape1));
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
   EXPECT_TRUE(equal) << "Relu failed\n";
@@ -687,7 +687,7 @@ TEST(Tensor, Relu5x5) {
   tensor *tensor1 = tensor_from_buffer(shape1, buffer1, false);
   tensor *output = tensor_relu(tensor1, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, shape1));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, shape1));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -728,7 +728,7 @@ TEST(Tensor, Reshape3x4) {
   tensor *tensor1 = tensor_from_buffer(shape1, buffer1, false);
   tensor *output = tensor_reshape(tensor1, new_shape, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, new_shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, new_shape));
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
   EXPECT_TRUE(equal) << "Reshape failed\n";
@@ -778,7 +778,7 @@ TEST(Tensor, Expand) {
   tensor *tensor1 = tensor_from_buffer(shape1, buffer1, false);
   tensor *output = tensor_expand(tensor1, axis, amount, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, new_shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, new_shape));
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
   EXPECT_TRUE(equal) << "Expand failed\n";
@@ -820,7 +820,7 @@ TEST(Tensor, Neg3x4) {
 
   tensor *output = tensor_neg(tensor1, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, shape1));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, shape1));
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
   EXPECT_TRUE(equal) << "Relu failed\n";
@@ -859,7 +859,7 @@ TEST(Tensor, Neg5x5) {
   tensor *tensor1 = tensor_from_buffer(shape1, buffer1, false);
   tensor *output = tensor_neg(tensor1, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, shape1));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, shape1));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -901,7 +901,7 @@ TEST(Tensor, MaxPool2d5x5) {
   tensor *tensor1 = tensor_from_buffer(shape1, buffer1, false);
   tensor *output = tensor_maxpool2d(tensor1, kernel_size, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, output_shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, output_shape));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -946,7 +946,7 @@ TEST(Tensor, Matmul) {
 
   tensor *output = tensor_matmul(tensor1, tensor2, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, output_shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, output_shape));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -1004,7 +1004,7 @@ TEST(Tensor, Conv2d) {
   tensor *tensor2 = tensor_from_buffer(shape2, kernel_buffer, false);
   tensor *output = tensor_conv2d(tensor1, tensor2, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, output_shape));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, output_shape));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -1039,7 +1039,7 @@ TEST(Tensor, Square) {
 
   tensor *output = tensor_square(tensor1, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, shape1));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, shape1));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -1074,7 +1074,7 @@ TEST(Tensor, Sqrt) {
 
   tensor *output = tensor_sqrt(tensor1, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, shape1));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, shape1));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -1111,7 +1111,7 @@ TEST(Tensor, Exp) {
 
   tensor *output = tensor_exp(tensor1, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, shape1));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, shape1));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -1148,7 +1148,7 @@ TEST(Tensor, Log) {
 
   tensor *output = tensor_log(tensor1, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, shape1));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, shape1));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 
@@ -1185,7 +1185,7 @@ TEST(Tensor, Reciprocal) {
 
   tensor *output = tensor_reciprocal(tensor1, false);
 
-  ASSERT_TRUE(intarray_equal(output->v->shape, shape1));
+  ASSERT_TRUE(intarray_equal(output->vw->shape, shape1));
 
   bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
 

@@ -46,14 +46,14 @@ intarray *intarray_build(uint32_t size, ...);
 intarray *intarray_zeros(uint32_t size);
 intarray *intarray_ones(uint32_t size);
 intarray *intarray_add(intarray *a, intarray *b);
-uint64_t intarray_prod(intarray *s);
-intarray *intarray_copy(intarray *other);
+uint64_t intarray_prod(intarray *a);
+intarray *intarray_copy(intarray *a);
 bool intarray_equal(intarray *a, intarray *b);
 intarray *intarray_div(intarray *a, intarray *b);
-void intarray_free(intarray *s);
-void intarray_print(intarray *s);
-intarray *intarray_pad_left(intarray *s, int new_size);
-intarray *intarray_squeeze(intarray *s);
+void intarray_free(intarray *a);
+void intarray_print(intarray *a);
+intarray *intarray_pad_left(intarray *a, int new_size);
+intarray *intarray_squeeze(intarray *a);
 
 // View
 
@@ -61,10 +61,11 @@ typedef struct {
   intarray *shape;
 } view;
 
-view* view_new(intarray* shape);
-uint64_t view_index(view *v, intarray *index);
-view* view_copy(view *v);
-void view_free(view *view);
+view *view_new(intarray *shape);
+uint64_t view_index(view *vw, intarray *index);
+view *view_copy(view *vw);
+bool view_equal(view *a, view *b);
+void view_free(view *vw);
 
 // Storage
 
@@ -73,23 +74,22 @@ typedef struct {
   uint64_t size;
 } storage;
 
-
 storage *storage_zeros(uint64_t buffer_length);
 storage *storage_from_buffer(uint64_t size, float *buffer);
-void storage_free(storage *s);
-float storage_getitem(storage *s, uint64_t index);
-void storage_setitem(storage *s, uint64_t index, float val);
-storage *storage_copy(storage *s);
-void storage_to_zeros(storage *s);
-float storage_getindex(storage *data, view* v, intarray *index);
-void storage_setindex(storage *data, view *v, intarray* index, float num);
+void storage_free(storage *data);
+float storage_getitem(storage *data, uint64_t index);
+void storage_setitem(storage *data, uint64_t index, float val);
+storage *storage_copy(storage *data);
+void storage_to_zeros(storage *data);
+float storage_getindex(storage *data, view *vw, intarray *index);
+void storage_setindex(storage *data, view *vw, intarray *index, float num);
 
 // tensor
 
 typedef struct tensor tensor;
 struct tensor {
   storage *data;
-  view *v;
+  view *vw;
 
   tensor **parents;
   void (*_backwards)(tensor *);
@@ -101,21 +101,23 @@ struct tensor {
 
 // TODO: tostring
 // (cache in repr, use inside print), view/reshape
-tensor *tensor_zeros(intarray *s, bool requires_grad);
-tensor *tensor_ones(intarray *s, bool requires_grad);
-tensor *tensor_from_buffer(intarray *s, float *buffer, bool requires_grads);
-float tensor_getindex(tensor *self, intarray *index);
-void tensor_setindex(tensor *self, intarray *index, float num);
-tensor *tensor_fill(intarray *s, float fill_value, bool requires_grad);
-tensor *tensor_linspace(intarray *s, float min, float max, bool requires_grad);
-tensor *tensor_uniform(intarray *s, float min, float max, bool requires_grad);
-tensor *tensor_uniformint(intarray *s, float min, float max,
+tensor *tensor_zeros(intarray *shape, bool requires_grad);
+tensor *tensor_ones(intarray *shape, bool requires_grad);
+tensor *tensor_from_buffer(intarray *shape, float *buffer, bool requires_grads);
+float tensor_getindex(tensor *input, intarray *index);
+void tensor_setindex(tensor *input, intarray *index, float num);
+tensor *tensor_fill(intarray *shape, float fill_value, bool requires_grad);
+tensor *tensor_linspace(intarray *shape, float min, float max,
+                        bool requires_grad);
+tensor *tensor_uniform(intarray *shape, float min, float max,
+                       bool requires_grad);
+tensor *tensor_uniformint(intarray *shape, float min, float max,
                           bool requires_grad);
 tensor *tensor_copy(tensor *original, bool requires_grad);
-void tensor_to_zeros(tensor *t);
-void tensor_to_n(tensor *t, float n);
-void tensor_print(tensor *t, bool show_buffer, bool show_grads);
-void tensor_free(tensor *t);
+void tensor_to_zeros(tensor *input);
+void tensor_to_n(tensor *input, float n);
+void tensor_print(tensor *input, bool show_buffer, bool show_grads);
+void tensor_free(tensor *input);
 bool tensor_equal(tensor *a, tensor *b, float rtol, float atol);
 tensor *tensor_linear_init(intarray *shape, int in_features,
                            bool requires_grad);
@@ -126,20 +128,20 @@ tensor *tensor_conv_init(intarray *shape, int in_channels, int kernel_size,
 tensor *tensor_add(tensor *a, tensor *b, bool track_grads);
 tensor *tensor_sub(tensor *a, tensor *b, bool track_grads);
 tensor *tensor_mul(tensor *a, tensor *b, bool track_grads);
-tensor *tensor_sum(tensor *a, int axis, bool track_grads);
-tensor *tensor_relu(tensor *a, bool track_grads);
-tensor *tensor_reshape(tensor *a, intarray *new_shape, bool track_grads);
-tensor *tensor_expand(tensor *a, uint64_t axis, uint64_t amount,
+tensor *tensor_sum(tensor *input, int axis, bool track_grads);
+tensor *tensor_relu(tensor *input, bool track_grads);
+tensor *tensor_reshape(tensor *input, intarray *new_shape, bool track_grads);
+tensor *tensor_expand(tensor *input, uint64_t axis, uint64_t amount,
                       bool track_grads);
-tensor *tensor_neg(tensor *a, bool track_grads);
+tensor *tensor_neg(tensor *input, bool track_grads);
 tensor *tensor_maxpool2d(tensor *input, int kernel_size, bool track_grads);
-tensor *tensor_matmul(tensor *weights, tensor *input, bool track_grads);
+tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads);
 tensor *tensor_conv2d(tensor *input, tensor *kernels, bool track_grads);
 tensor *tensor_square(tensor *input, bool track_grads);
 tensor *tensor_sqrt(tensor *input, bool track_grads);
 tensor *tensor_exp(tensor *input, bool track_grads);
 tensor *tensor_log(tensor *input, bool track_grads);
-tensor *tensor_reciprocal(tensor *a, bool track_grads);
+tensor *tensor_reciprocal(tensor *input, bool track_grads);
 
 // ops backward
 void _add_backwards(tensor *self);
@@ -162,7 +164,7 @@ void _reciprocal_backwards(tensor *self);
 // functions
 tensor *flatten(tensor *input, int start_dim);
 tensor *mean(tensor *input, int axis);
-// tensor *variance(tensor *input, int axis, int correction); // FIXME:
+tensor *variance(tensor *input, int axis, int correction);
 tensor *sparse_categorical_cross_entropy(tensor *input, tensor *Y);
 
 // computational graph

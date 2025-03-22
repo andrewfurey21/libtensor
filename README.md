@@ -43,6 +43,8 @@ tgraph_backprop(comp_graph);
 
 ## future ideas
 
+- broadcasting
+- ggml kind of context? lazy setup tensors. no mallocs during inference/training
 - groups, stride, dilation, padding to maxpool + conv. Figure out how im2col works, and how tinygrad does it's convolutions
 - more functions: permute, pad, batchnorm, attention, etc.
 - import/export weights in different formats
