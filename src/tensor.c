@@ -955,7 +955,6 @@ tensor *tensor_maxpool2d(tensor *input, int kernel_size, bool track_grads) {
   return output;
 }
 
-// broadcasting would get rid of the mallocs i think.
 void _matmul_backwards(tensor *self) {
   // weights: (transpose inputs * self.grad) sum
   if (self->parents[0]->requires_grad) {
@@ -965,37 +964,36 @@ void _matmul_backwards(tensor *self) {
   }
 }
 
-// for now, a can have 2d
-// b can have 2d or 3d (for batches)
-// need to do broadcasting
-tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads) {
-  int a_size = a->dview->shape->size;
-  int b_size = b->dview->shape->size;
-  assert(a_size == 2);
-  assert(b_size == 2 || b_size == 3);
+// for now, weights will be 2d
+// input will be 2/3d (for batches)
+tensor *tensor_matmul(tensor *w, tensor *b, bool track_grads) {
+  int weights_size = w->dview->shape->size;
+  int batch_size = b->dview->shape->size;
+  assert(weights_size == 2);
+  assert(batch_size == 2 || batch_size == 3);
 
-  int aw = a->dview->shape->items[a_size - 1];
-  int ah = a->dview->shape->items[a_size - 2];
+  int ww = w->dview->shape->items[weights_size - 1];
+  int wh = w->dview->shape->items[weights_size - 2];
 
-  int bw = b->dview->shape->items[b_size - 1];
-  int bh = b->dview->shape->items[b_size - 2];
+  int bw = b->dview->shape->items[batch_size - 1];
+  int bh = b->dview->shape->items[batch_size - 2];
 
-  int bs = b_size == 3 ? b->dview->shape->items[0] : 1;
+  int bs = batch_size == 3 ? b->dview->shape->items[0] : 1;
 
-  assert(aw == bh && "Tensors are not the correct shape");
+  assert(ww == bh && "Tensors are not the correct shape");
 
   intarray *new_shape;
-  if (b_size == 3) {
-    new_shape = intarray_build(3, bs, ah, bw);
+  if (batch_size == 3) {
+    new_shape = intarray_build(3, bs, wh, bw);
   } else {
-    new_shape = intarray_build(2, ah, bw);
+    new_shape = intarray_build(2, wh, bw);
   }
 
   tensor **parents = NULL;
-  bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
+  bool requires_grad = (w->requires_grad || b->requires_grad) && track_grads;
   if (requires_grad) {
     parents = (tensor **)malloc(tensor_op_operands(MATMUL) * sizeof(tensor *));
-    parents[0] = a;
+    parents[0] = w;
     parents[1] = b;
   }
 
@@ -1005,24 +1003,24 @@ tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads) {
   t->op = MATMUL;
   t->_backwards = &_matmul_backwards;
 
-  intarray *ai = intarray_zeros(2);
+  intarray *wi = intarray_zeros(2);
   intarray *bi = intarray_zeros(3);
   intarray *oi = intarray_zeros(3);
 
   for (int batch = 0; batch < bs; batch++) {
     oi->items[0] = batch;
     bi->items[0] = batch;
-    for (int k = 0; k < ah; k++) {
+    for (int k = 0; k < wh; k++) {
       oi->items[1] = k;
-      ai->items[0] = k;
+      wi->items[0] = k;
       for (int j = 0; j < bw; j++) {
         oi->items[2] = j;
         bi->items[2] = j;
         float sum = 0;
-        for (int i = 0; i < aw; i++) {
+        for (int i = 0; i < ww; i++) {
           bi->items[1] = i;
-          ai->items[1] = i;
-          float av = tensor_getindex(a, ai);
+          wi->items[1] = i;
+          float av = tensor_getindex(w, wi);
           float bv = tensor_getindex(b, bi);
           sum += av * bv;
         }
@@ -1030,7 +1028,7 @@ tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads) {
       }
     }
   }
-  intarray_free(ai);
+  intarray_free(wi);
   intarray_free(bi);
   intarray_free(oi);
   return t;

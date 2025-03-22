@@ -114,7 +114,7 @@ tensor *tensor_expand(tensor *a, uint64_t axis, uint64_t amount,
                       bool track_grads);
 tensor *tensor_neg(tensor *a, bool track_grads);
 tensor *tensor_maxpool2d(tensor *input, int kernel_size, bool track_grads);
-tensor *tensor_matmul(tensor *input, tensor *other, bool track_grads);
+tensor *tensor_matmul(tensor *weights, tensor *input, bool track_grads);
 tensor *tensor_conv2d(tensor *input, tensor *kernels, bool track_grads);
 tensor *tensor_square(tensor *input, bool track_grads);
 tensor *tensor_sqrt(tensor *input, bool track_grads);
