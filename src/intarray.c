@@ -3,6 +3,7 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "stdarg.h"
+#include "assert.h"
 #include "../include/tensor.h"
 #include <stdint.h>
 
@@ -102,11 +103,29 @@ void intarray_print(intarray* s) {
     printf(")\n");
 }
 
-intarray* intarray_add_one(intarray* s) {
-    assert(s->size < MAX_ITEMS - 1);
-    intarray* new_shape = intarray_ones(s->size + 1);
-    for (int i = 1; i < new_shape->size; i++) {
-        new_shape->items[i] = s->items[i-1];
+intarray* intarray_pad_left(intarray* s, int new_size) {
+    assert(new_size >= s->size && new_size <= MAX_ITEMS);
+    intarray* new_shape = intarray_ones(new_size);
+    for (int i = new_size - s->size; i < new_shape->size; i++) {
+        new_shape->items[i] = s->items[i-(new_size-s->size)];
     }
     return new_shape;
+}
+
+intarray* intarray_squeeze(intarray* s) {
+    assert(s->size > 0 && s->size <= MAX_ITEMS);
+    int count = 0;
+    for (int i = 0; i < s->size; i++) {
+        count += s->items[i] == 1;
+    }
+
+    intarray* new = intarray_zeros(s->size - count);
+
+    count = 0;
+    for (int i = 0; i < s->size; i++) {
+        if (s->items[i] != 1) {
+            new->items[count++] = s->items[i];
+        }
+    }
+    return new;
 }

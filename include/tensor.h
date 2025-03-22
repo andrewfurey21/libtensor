@@ -50,7 +50,8 @@ bool intarray_equal(intarray *a, intarray *b);
 intarray *intarray_div(intarray *a, intarray *b);
 void intarray_free(intarray *s);
 void intarray_print(intarray *s);
-intarray *intarray_add_one(intarray *s);
+intarray *intarray_pad_left(intarray *s, int new_size);
+intarray* intarray_squeeze(intarray* s);
 
 typedef struct {
   float *buffer;
