@@ -365,7 +365,7 @@ TEST(Backwards, Matmul) {
   intarray *weights_shape = intarray_build(2, 3, 5);
 
   tensor *batch = tensor_linspace(batch_shape, -10, 20, true);
-  tensor *weights = tensor_linspace(weights_shape, -10, 20, true);
+ tensor *weights = tensor_linspace(weights_shape, -10, 20, true);
 
   float batch_grads_buffer[] = {
       2.1428556, 2.1428556, 2.1428556, 2.1428556, 8.571428,
