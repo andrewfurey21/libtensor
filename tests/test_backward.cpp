@@ -227,14 +227,14 @@ TEST(Backwards, Reshape) {
   graph_zeroed(g);
   graph_backprop(g);
 
-  EXPECT_TRUE(intarray_equal(shape, tensor1->grads->dview->shape))
+  EXPECT_TRUE(intarray_equal(shape, tensor1->grads->v->shape))
       << "Backwards Reshape failed\n";
 
   if (HasFailure()) {
     printf("Expected: \n");
     intarray_print(shape);
     printf("Output: \n");
-    intarray_print(tensor1->grads->dview->shape);
+    intarray_print(tensor1->grads->v->shape);
   }
 
   intarray_free(shape);
@@ -520,8 +520,8 @@ TEST(Backwards, Square) {
   tensor *output1 = tensor_square(tensor1, true);
   tensor *sum = tensor_sum(output1, 0, true);
 
-  tensor *correct=  tensor_zeros(tensor1->dview->shape, false);
-  for (int i = 0; i < intarray_prod(output1->dview->shape); i++) {
+  tensor *correct=  tensor_zeros(tensor1->v->shape, false);
+  for (int i = 0; i < intarray_prod(output1->v->shape); i++) {
     correct->data->buffer[i] = tensor1->data->buffer[i] * 2;
   }
 
@@ -556,8 +556,8 @@ TEST(Backwards, Sqrt) {
   tensor *output1 = tensor_sqrt(tensor1, true);
   tensor *sum = tensor_sum(output1, 0, true);
 
-  tensor *correct=  tensor_zeros(tensor1->dview->shape, false);
-  for (int i = 0; i < intarray_prod(output1->dview->shape); i++) {
+  tensor *correct=  tensor_zeros(tensor1->v->shape, false);
+  for (int i = 0; i < intarray_prod(output1->v->shape); i++) {
     correct->data->buffer[i] = 1.0f / (sqrtf(tensor1->data->buffer[i]) * 2.0f);
   }
 
@@ -592,8 +592,8 @@ TEST(Backwards, Exp) {
   tensor *output1 = tensor_exp(tensor1, true);
   tensor *sum = tensor_sum(output1, 0, true);
 
-  tensor *correct=  tensor_zeros(tensor1->dview->shape, false);
-  for (int i = 0; i < intarray_prod(output1->dview->shape); i++) {
+  tensor *correct=  tensor_zeros(tensor1->v->shape, false);
+  for (int i = 0; i < intarray_prod(output1->v->shape); i++) {
     correct->data->buffer[i] = exp(tensor1->data->buffer[i]);
   }
 
@@ -628,8 +628,8 @@ TEST(Backwards, Log) {
   tensor *output1 = tensor_log(tensor1, true);
   tensor *sum = tensor_sum(output1, 0, true);
 
-  tensor *correct=  tensor_zeros(tensor1->dview->shape, false);
-  for (int i = 0; i < intarray_prod(output1->dview->shape); i++) {
+  tensor *correct=  tensor_zeros(tensor1->v->shape, false);
+  for (int i = 0; i < intarray_prod(output1->v->shape); i++) {
     correct->data->buffer[i] = 1.0f / tensor1->data->buffer[i];
   }
 
@@ -664,8 +664,8 @@ TEST(Backwards, Reciprocal) {
   tensor *output1 = tensor_reciprocal(tensor1, true);
   tensor *sum = tensor_sum(output1, 0, true);
 
-  tensor *correct=  tensor_zeros(tensor1->dview->shape, false);
-  for (int i = 0; i < intarray_prod(output1->dview->shape); i++) {
+  tensor *correct=  tensor_zeros(tensor1->v->shape, false);
+  for (int i = 0; i < intarray_prod(output1->v->shape); i++) {
     float val = tensor1->data->buffer[i];
     correct->data->buffer[i] = -1.0f / (val * val);
   }

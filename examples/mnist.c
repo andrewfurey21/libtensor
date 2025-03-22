@@ -73,17 +73,17 @@ void load_mnist_batch(tensor *input_batch, tensor *output_batch,
     char *image = read_mnist_image(file_name, index);
     load_mnist_buffer(
         image, input_batch->data->buffer, output_batch->data->buffer,
-        i * intarray_prod(input_batch->dview->shape) / batch_size, i);
+        i * intarray_prod(input_batch->v->shape) / batch_size, i);
     free(image);
   }
 }
 
 void display_mnist_image(tensor *image, tensor *correct, tensor *guesses) {
   intarray *index = intarray_zeros(4);
-  for (int b = 0; b < image->dview->shape->items[0]; b++) {
+  for (int b = 0; b < image->v->shape->items[0]; b++) {
     index->items[0] = b;
     float answer = correct->data->buffer[b];
-    if (image->dview->shape->items[0] > 1) {
+    if (image->v->shape->items[0] > 1) {
       printf("Batch item #%d\n", b + 1);
     } else {
       printf("Single image\n");
@@ -95,9 +95,9 @@ void display_mnist_image(tensor *image, tensor *correct, tensor *guesses) {
       printf("\n");
     }
 
-    for (int h = 0; h < image->dview->shape->items[2]; h++) {
+    for (int h = 0; h < image->v->shape->items[2]; h++) {
       index->items[2] = h;
-      for (int w = 0; w < image->dview->shape->items[3]; w++) {
+      for (int w = 0; w < image->v->shape->items[3]; w++) {
         index->items[3] = w;
         float value = tensor_getindex(image, index);
         if (value > 150) {
@@ -148,25 +148,26 @@ int main(void) {
   intarray *linear_layer_2_shape = intarray_build(2, 10, 128);
   model.linear_layer_2 = tensor_linear_init(linear_layer_2_shape, 128, true);
 
-  // // Conv (Layer 1)
+  // training 
+
   tensor *l1 = tensor_conv2d(input_batch, model.conv_layer_1, true);
   tensor *l1_activations = tensor_relu(l1, true);
-  // Conv (Layer 2)
+ 
   tensor *l2 = tensor_conv2d(l1_activations, model.conv_layer_2, true);
   tensor *l2_activations = tensor_relu(l2, true);
-  // Maxpool + flattened
+ 
   tensor *maxpool = tensor_maxpool2d(l2_activations, 2, true);
   tensor *flatteneded_maxpool = flatten(maxpool, 1);
   intarray *new_shape = intarray_build(3, batch_size, 9216, 1);
   tensor *l3_input = tensor_reshape(flatteneded_maxpool, new_shape, true);
-  // Linear (Layer 3)
+  
   tensor *l3 = tensor_matmul(model.linear_layer_1, l3_input, true);
   tensor *l3_activations = tensor_relu(l3, true);
-  // Linear (Layer 3)
+  
   tensor *l4 = tensor_matmul(model.linear_layer_2, l3_activations, true);
   tensor *logits = flatten(l4, 1);
 
-  tensor *loss = tensor_sum(logits, 1, true);
+  tensor *loss = tensor_sum(logits, -1, true);
 
   intarray* unit_shape = intarray_build(1, 1);
   tensor *scalar_loss = tensor_reshape(loss, unit_shape, true);

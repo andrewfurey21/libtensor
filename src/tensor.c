@@ -20,89 +20,12 @@
 // double check backwards functions are accumulating gradients and not just
 // reseting them
 
-storage *storage_new(uint64_t buffer_length) {
-  float *buffer = (float *)calloc(buffer_length, sizeof(float));
-  storage *s = (storage *)malloc(sizeof(storage));
-  s->buffer = buffer;
-  s->refcount = 1;
-  s->size = buffer_length;
-  return s;
-}
-
-// maybe not a good idea memory wise but whatever
-storage *storage_from_buffer(uint64_t size, float *buffer) {
-  // TODO: check if this works
-  //
-  // uint64_t size = malloc_usable_size(buffer)/sizeof(float);
-  float *buffer_copy = (float *)calloc(size, sizeof(float)); // memcpy
-  for (int i = 0; i < size; i++) {
-    buffer_copy[i] = buffer[i];
-  }
-  storage *data = (storage *)malloc(sizeof(storage));
-  data->size = size;
-  data->buffer = buffer_copy;
-  data->refcount = 1;
-  return data;
-}
-
-void storage_free(storage *s) {
-  free(s->buffer);
-  free(s);
-}
-
-float storage_getitem(storage *s, uint64_t index) {
-  assert(index >= 0 && index < s->size);
-  return s->buffer[index];
-}
-
-void storage_setitem(storage *s, uint64_t index, float val) {
-  assert(index >= 0 && index < s->size);
-  s->buffer[index] = val;
-}
-
-void storage_inc_refcount(storage *s) { s->refcount++; }
-
-void storage_dec_refcount(storage *s) {
-  s->refcount--;
-  if (s->refcount <= 0) {
-    storage_free(s);
-  }
-}
-
-storage *storage_copy(storage *s) {
-  return storage_from_buffer(s->size, s->buffer);
-}
-
-void storage_to_zeros(storage *s) {
-  free(s->buffer);
-  s->buffer = (float *)calloc(s->size, sizeof(float));
-}
-
-// TODO: test please
-uint64_t storage_logical_to_physical(tensor *t, intarray *logical_index) {
-  intarray *t_strides = t->dview->strides;
-  assert(logical_index->size == t->data->size);
-  assert(logical_index->size == t_strides->size);
-
-  uint64_t index = 0;
-  for (int i = 0; i < logical_index->size; i++) {
-    index += logical_index->items[i] * t_strides->items[i];
-  }
-  return index + t->dview->offset;
-}
-
-void view_free(view *view) {
-  intarray_free(view->shape);
-  intarray_free(view->strides);
-  free(view);
-}
-
 tensor *tensor_zeros(intarray *s, bool requires_grad) {
   uint64_t size = intarray_prod(s);
   assert(size != 0);
 
   intarray *copy = intarray_copy(s);
-  storage *data = storage_new(size);
+  storage *data = storage_zeros(size);
 
   tensor *grads = NULL;
   if (requires_grad) {
@@ -110,13 +33,9 @@ tensor *tensor_zeros(intarray *s, bool requires_grad) {
   }
 
   tensor *t = (tensor *)malloc(sizeof(tensor));
-
-  // TODO: Make functions for views
-  view *v = (view *)malloc(sizeof(view));
-  t->dview = v;
-  t->dview->shape = copy;
-  t->dview->strides = intarray_ones(copy->size);
-  t->dview->offset = 0;
+  view *v = view_new(s);
+  t->v = v;
+  t->v->shape = copy;
 
   t->data = data;
   t->requires_grad = requires_grad;
@@ -144,11 +63,9 @@ tensor *tensor_from_buffer(intarray *s, float *buffer, bool requires_grad) {
   intarray *strides = intarray_ones(copy->size);
 
   view *v = (view *)malloc(sizeof(view));
-  ret->dview = v;
+  ret->v = v;
 
-  ret->dview->shape = copy;
-  ret->dview->strides = strides;
-  ret->dview->offset = 0;
+  ret->v->shape = copy;
 
   ret->data = data;
 
@@ -167,14 +84,13 @@ tensor *tensor_from_buffer(intarray *s, float *buffer, bool requires_grad) {
 // TODO: optimization: pad once, then unpad.
 // so shouldn't be doing pad here.
 float tensor_getindex(tensor *self, intarray *index) {
-  assert(index->size >= self->dview->shape->size);
+  assert(index->size >= self->v->shape->size);
 
-  // TODO: maybe just copy self->dview->shape and get rid of if
-  bool need_to_free = self->dview->shape->size < index->size;
-  intarray *self_shape =
-      self->dview->shape->size < index->size
-          ? intarray_pad_left(self->dview->shape, index->size)
-          : self->dview->shape;
+  // TODO: maybe just copy self->v->shape and get rid of if
+  bool need_to_free = self->v->shape->size < index->size;
+  intarray *self_shape = self->v->shape->size < index->size
+                             ? intarray_pad_left(self->v->shape, index->size)
+                             : self->v->shape;
 
   uint64_t index_buffer = 0;
   for (int i = 0; i < index->size; i++) {
@@ -188,15 +104,15 @@ float tensor_getindex(tensor *self, intarray *index) {
   if (need_to_free) {
     intarray_free(self_shape);
   }
-  return self->data->buffer[index_buffer];
+
+  return storage_getitem(self->data, index_buffer);
 }
 
 void tensor_setindex(tensor *self, intarray *index, float num) {
-  intarray *self_shape =
-      self->dview->shape->size < index->size
-          ? intarray_pad_left(self->dview->shape, index->size)
-          : self->dview->shape;
-  bool need_to_free = self->dview->shape->size < index->size;
+  intarray *self_shape = self->v->shape->size < index->size
+                             ? intarray_pad_left(self->v->shape, index->size)
+                             : self->v->shape;
+  bool need_to_free = self->v->shape->size < index->size;
   uint64_t index_buffer = 0;
   for (int i = 0; i < index->size; i++) {
     uint64_t mul = 1;
@@ -205,11 +121,11 @@ void tensor_setindex(tensor *self, intarray *index, float num) {
     }
     index_buffer += mul * index->items[i];
   }
-  assert(index_buffer < intarray_prod(self->dview->shape));
+  assert(index_buffer < intarray_prod(self->v->shape));
   if (need_to_free) {
     intarray_free(self_shape);
   }
-  self->data->buffer[index_buffer] = num;
+  return storage_setitem(self->data, index_buffer, num);
 }
 
 tensor *tensor_fill(intarray *s, float fill_value, bool requires_grad) {
@@ -250,9 +166,7 @@ tensor *tensor_uniformint(intarray *s, float min, float max,
 }
 
 tensor *tensor_copy(tensor *original, bool requires_grad) {
-  intarray *shape = intarray_copy(original->dview->shape);
-  intarray *strides = intarray_copy(original->dview->strides);
-
+  intarray *shape = intarray_copy(original->v->shape);
   tensor *grads = NULL;
   if (requires_grad) {
     grads = tensor_zeros(shape, false);
@@ -261,10 +175,8 @@ tensor *tensor_copy(tensor *original, bool requires_grad) {
   tensor *t = (tensor *)malloc(sizeof(tensor));
 
   view *v = (view *)malloc(sizeof(view));
-  t->dview = v;
-  t->dview->shape = shape;
-  t->dview->strides = strides;
-  t->dview->offset = 0;
+  t->v = v;
+  t->v->shape = shape;
 
   t->data = storage_copy(original->data);
   t->requires_grad = requires_grad;
@@ -292,7 +204,7 @@ void tensor_print(tensor *t, bool show_buffer, bool show_grads) {
     printf("values: (null)\n");
     return;
   }
-  intarray_print(t->dview->shape);
+  intarray_print(t->v->shape);
   if (t->requires_grad) {
     print_tensor_op(t->op);
   }
@@ -305,7 +217,7 @@ void tensor_print(tensor *t, bool show_buffer, bool show_grads) {
   }
   if (t->requires_grad && show_grads) {
     printf("gradient shape: ");
-    intarray_print(t->grads->dview->shape);
+    intarray_print(t->grads->v->shape);
     printf("gradient values: [ ");
     for (int i = 0; i < t->grads->data->size; i++) {
       printf("%f, ", t->grads->data->buffer[i]);
@@ -316,8 +228,7 @@ void tensor_print(tensor *t, bool show_buffer, bool show_grads) {
 
 // should probably free any grads from children.
 void tensor_free(tensor *t) {
-  view_free(t->dview);
-  storage_dec_refcount(t->data);
+  view_free(t->v);
 
   free(t->parents);
   if (t->requires_grad) {
@@ -327,8 +238,8 @@ void tensor_free(tensor *t) {
 }
 
 bool tensor_equal(tensor *a, tensor *b, float rtol, float atol) {
-  assert(intarray_equal(a->dview->shape, b->dview->shape));
-  for (int i = 0; i < intarray_prod(a->dview->shape); i++) {
+  assert(intarray_equal(a->v->shape, b->v->shape));
+  for (int i = 0; i < intarray_prod(a->v->shape); i++) {
     float b_val = b->data->buffer[i];
     if (fabs(a->data->buffer[i] - b_val) > atol + rtol * fabs(b_val)) {
       return false;
@@ -364,9 +275,9 @@ void _add_backwards(tensor *self) {
 }
 
 tensor *tensor_add(tensor *a, tensor *b, bool track_grads) {
-  assert(intarray_equal(a->dview->shape, b->dview->shape) &&
+  assert(intarray_equal(a->v->shape, b->v->shape) &&
          "Tensors are not the same shape.");
-  intarray *copy = intarray_copy(a->dview->shape); // TODO: free copy!!
+  intarray *copy = intarray_copy(a->v->shape); // TODO: free copy!!
 
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tensor **parents = NULL;
@@ -402,9 +313,9 @@ void _sub_backwards(tensor *self) {
 }
 
 tensor *tensor_sub(tensor *a, tensor *b, bool track_grads) {
-  assert(intarray_equal(a->dview->shape, b->dview->shape) &&
+  assert(intarray_equal(a->v->shape, b->v->shape) &&
          "Tensors are not the same shape.");
-  intarray *copy = intarray_copy(a->dview->shape); // TODO: free copy??
+  intarray *copy = intarray_copy(a->v->shape); // TODO: free copy??
 
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tensor **parents = NULL;
@@ -443,9 +354,9 @@ void _mul_backwards(tensor *self) {
 }
 
 tensor *tensor_mul(tensor *a, tensor *b, bool track_grads) {
-  assert(intarray_equal(a->dview->shape, b->dview->shape) &&
+  assert(intarray_equal(a->v->shape, b->v->shape) &&
          "Tensors are not the same shape.");
-  intarray *copy = intarray_copy(a->dview->shape);
+  intarray *copy = intarray_copy(a->v->shape);
 
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tensor **parents = NULL;
@@ -471,8 +382,8 @@ void _sum_backwards(tensor *self) {
   }
   intarray *unit_shape = intarray_build(1, 1);
 
-  intarray *self_shape = self->dview->shape;
-  intarray *parent_shape = self->parents[0]->dview->shape;
+  intarray *self_shape = self->v->shape;
+  intarray *parent_shape = self->parents[0]->v->shape;
   if (intarray_equal(unit_shape, self_shape)) {
     tensor *expanded_grads =
         tensor_fill(parent_shape, self->grads->data->buffer[0], false);
@@ -537,12 +448,12 @@ void _sum_backwards(tensor *self) {
 // currently always keepdims, except for axis=-1
 // could seriously use some tests here
 tensor *tensor_sum(tensor *a, int axis, bool track_grads) {
-  assert(axis >= -1 && axis < (int)a->dview->shape->size);
+  assert(axis >= -1 && axis < (int)a->v->shape->size);
   intarray *new_shape;
   if (axis == -1) {
     new_shape = intarray_build(1, 1);
   } else {
-    new_shape = intarray_copy(a->dview->shape);
+    new_shape = intarray_copy(a->v->shape);
     new_shape->items[axis] = 1;
   }
 
@@ -566,12 +477,12 @@ tensor *tensor_sum(tensor *a, int axis, bool track_grads) {
     }
     t->data->buffer[0] = sum;
   } else {
-    intarray *stride = intarray_zeros(a->dview->shape->size);
+    intarray *stride = intarray_zeros(a->v->shape->size);
     stride->items[axis] = 1;
 
-    uint64_t along_axis = a->dview->shape->items[axis];
-    uint64_t num_accumulate = intarray_prod(a->dview->shape) / along_axis;
-    intarray *current = intarray_zeros(a->dview->shape->size);
+    uint64_t along_axis = a->v->shape->items[axis];
+    uint64_t num_accumulate = intarray_prod(a->v->shape) / along_axis;
+    intarray *current = intarray_zeros(a->v->shape->size);
     for (uint64_t i = 0; i < num_accumulate; i++) {
       float sum = 0.0f;
       for (uint64_t j = 0; j < along_axis; j++) {
@@ -585,7 +496,7 @@ tensor *tensor_sum(tensor *a, int axis, bool track_grads) {
         if (k == axis)
           continue;
         current->items[k]++;
-        if (current->items[k] >= a->dview->shape->items[k]) {
+        if (current->items[k] >= a->v->shape->items[k]) {
           current->items[k] = 0;
           continue;
         }
@@ -601,7 +512,7 @@ void _relu_backwards(tensor *self) {
     return;
   }
 
-  tensor *grads = tensor_zeros(self->dview->shape, false);
+  tensor *grads = tensor_zeros(self->v->shape, false);
   for (size_t i = 0; i < self->parents[0]->data->size; i++) {
     if (self->parents[0]->data->buffer[i] > 0) {
       grads->data->buffer[i] = 1;
@@ -616,7 +527,7 @@ void _relu_backwards(tensor *self) {
 }
 
 tensor *tensor_relu(tensor *a, bool track_grads) {
-  intarray *copy = intarray_copy(a->dview->shape);
+  intarray *copy = intarray_copy(a->v->shape);
   tensor **parents = NULL;
 
   bool requires_grad = a->requires_grad && track_grads;
@@ -642,7 +553,7 @@ void _reshape_backwards(tensor *self) {
   if (!self->parents[0]->requires_grad)
     return;
   tensor *grads =
-      tensor_reshape(self->grads, self->parents[0]->dview->shape, false);
+      tensor_reshape(self->grads, self->parents[0]->v->shape, false);
   tensor *acc_grads = tensor_add(grads, self->parents[0]->grads, false);
   tensor_free(grads);
   self->parents[0]->grads = acc_grads;
@@ -650,7 +561,7 @@ void _reshape_backwards(tensor *self) {
 
 tensor *tensor_reshape(tensor *a, intarray *new_shape, bool track_grads) {
   intarray *new_shape_copy = intarray_copy(new_shape);
-  assert(intarray_prod(new_shape) == intarray_prod(a->dview->shape));
+  assert(intarray_prod(new_shape) == intarray_prod(a->v->shape));
   tensor **parents = NULL;
   tensor *reshaped_grads = NULL;
   bool requires_grad = a->requires_grad && track_grads;
@@ -661,7 +572,7 @@ tensor *tensor_reshape(tensor *a, intarray *new_shape, bool track_grads) {
   }
   tensor *t = tensor_copy(a, requires_grad);
   free(t->grads);
-  t->dview->shape = new_shape_copy;
+  t->v->shape = new_shape_copy;
   t->parents = parents;
   t->op = RESHAPE;
   t->_backwards = &_reshape_backwards;
@@ -674,8 +585,7 @@ tensor *tensor_reshape(tensor *a, intarray *new_shape, bool track_grads) {
 void _expand_backwards(tensor *self) {
   // sum
   // shape should be same for tensor and their gradients
-  intarray *div =
-      intarray_div(self->dview->shape, self->parents[0]->dview->shape);
+  intarray *div = intarray_div(self->v->shape, self->parents[0]->v->shape);
   int expanded_axis = -1;
   for (int i = 0; i < div->size; i++) {
     if (div->items[i] != 1) {
@@ -684,13 +594,13 @@ void _expand_backwards(tensor *self) {
     }
   }
   assert(expanded_axis != -1 &&
-         "Did not find an expanded axis from self->dview->shape");
+         "Did not find an expanded axis from self->v->shape");
 
   // sum self->parents[0]->grads along expanded_axis
 
-  uint64_t along_axis = self->dview->shape->items[expanded_axis];
-  uint64_t num_accumulate = intarray_prod(self->dview->shape) / along_axis;
-  intarray *current = intarray_zeros(self->dview->shape->size);
+  uint64_t along_axis = self->v->shape->items[expanded_axis];
+  uint64_t num_accumulate = intarray_prod(self->v->shape) / along_axis;
+  intarray *current = intarray_zeros(self->v->shape->size);
 
   tensor *self_grad = self->grads;
   tensor *parent_grad = self->parents[0]->grads;
@@ -707,7 +617,7 @@ void _expand_backwards(tensor *self) {
       if (k == expanded_axis)
         continue;
       current->items[k]++;
-      if (current->items[k] >= self->dview->shape->items[k]) {
+      if (current->items[k] >= self->v->shape->items[k]) {
         current->items[k] = 0;
         continue;
       }
@@ -721,7 +631,7 @@ void _expand_backwards(tensor *self) {
 // follows broadcasting rules, cannot expand dim that isn't 1
 tensor *tensor_expand(tensor *original_tensor, uint64_t axis, uint64_t factor,
                       bool track_grads) {
-  intarray *new_shape = intarray_copy(original_tensor->dview->shape);
+  intarray *new_shape = intarray_copy(original_tensor->v->shape);
   assert(axis >= 0 && axis < new_shape->size &&
          "Axis to expand is out of range.");
   assert(factor > 0 && "Expanding factor must be greater than 0");
@@ -743,8 +653,7 @@ tensor *tensor_expand(tensor *original_tensor, uint64_t axis, uint64_t factor,
   expanded_tensor->_backwards = &_expand_backwards;
 
   // expand here
-  intarray *expanded_index =
-      intarray_zeros(expanded_tensor->dview->shape->size);
+  intarray *expanded_index = intarray_zeros(expanded_tensor->v->shape->size);
   uint64_t along_axis = new_shape->items[axis];
 
   for (uint64_t i = 0; i < expanded_tensor->data->size; i++) {
@@ -764,7 +673,7 @@ tensor *tensor_expand(tensor *original_tensor, uint64_t axis, uint64_t factor,
         continue;
       }
       expanded_index->items[k]++;
-      if (expanded_index->items[k] >= original_tensor->dview->shape->items[k]) {
+      if (expanded_index->items[k] >= original_tensor->v->shape->items[k]) {
         expanded_index->items[k] = 0;
         continue;
       }
@@ -778,7 +687,7 @@ void _neg_backwards(tensor *self) {
   if (!self->parents[0]->requires_grad) {
     return;
   }
-  tensor *grads = tensor_fill(self->dview->shape, -1.0f, false);
+  tensor *grads = tensor_fill(self->v->shape, -1.0f, false);
   tensor *mul_grads = tensor_mul(grads, self->grads, false);
   tensor *acc_grads = tensor_add(mul_grads, self->parents[0]->grads, false);
   tensor_free(self->parents[0]->grads);
@@ -788,7 +697,7 @@ void _neg_backwards(tensor *self) {
 }
 
 tensor *tensor_neg(tensor *a, bool track_grads) {
-  intarray *shape = intarray_copy(a->dview->shape);
+  intarray *shape = intarray_copy(a->v->shape);
 
   bool requires_grad = track_grads && a->requires_grad;
   tensor *t = tensor_zeros(shape, requires_grad);
@@ -817,8 +726,8 @@ void _maxpool2d_backwards(tensor *self) {
   // mul expanded by sparse grads
   // then acc to parents->grads.
 
-  intarray *self_shape = self->dview->shape;
-  intarray *parent_shape = self->parents[0]->dview->shape;
+  intarray *self_shape = self->v->shape;
+  intarray *parent_shape = self->parents[0]->v->shape;
   int x_index = self_shape->size - 1;
 
   int pooled_width = self_shape->items[x_index];
@@ -860,7 +769,7 @@ void _maxpool2d_backwards(tensor *self) {
   intarray_free(index);
 
   index = intarray_zeros(parent_shape->size);
-  tensor *pooled_grads = tensor_ones(self->parents[0]->dview->shape, false);
+  tensor *pooled_grads = tensor_ones(self->parents[0]->v->shape, false);
   for (int b = 0; b < fmax(batches, 1); b++) {
     if (batches)
       index->items[x_index - 3] = b;
@@ -911,7 +820,7 @@ void _maxpool2d_backwards(tensor *self) {
 // no dilation, padding. ceilmode=False.
 // 4d, 3d, 2d only.
 tensor *tensor_maxpool2d(tensor *input, int kernel_size, bool track_grads) {
-  intarray *input_shape = input->dview->shape;
+  intarray *input_shape = input->v->shape;
   int x_index = input_shape->size - 1;
 
   assert(input_shape->size >= 2);
@@ -986,8 +895,8 @@ tensor *tensor_maxpool2d(tensor *input, int kernel_size, bool track_grads) {
 
 // swaps last two dims
 tensor *_transpose(tensor *original) {
-  tensor *new = tensor_zeros(original->dview->shape, false);
-  intarray *shape = new->dview->shape;
+  tensor *new = tensor_zeros(original->v->shape, false);
+  intarray *shape = new->v->shape;
 
   int bs = shape->size >= 4 ? shape->items[shape->size - 4] : 1;
   int cs = shape->size >= 3 ? shape->items[shape->size - 3] : 1;
@@ -1035,15 +944,15 @@ tensor *_transpose(tensor *original) {
 }
 
 void _matmul_backwards(tensor *self) {
-  intarray *wshape = self->parents[0]->dview->shape;
-  intarray *ishape = self->parents[1]->dview->shape;
+  intarray *wshape = self->parents[0]->v->shape;
+  intarray *ishape = self->parents[1]->v->shape;
 
-  int ww = self->parents[0]->dview->shape->items[wshape->size - 1];
-  int wh = self->parents[0]->dview->shape->items[wshape->size - 2];
+  int ww = self->parents[0]->v->shape->items[wshape->size - 1];
+  int wh = self->parents[0]->v->shape->items[wshape->size - 2];
 
-  int bw = self->parents[1]->dview->shape->items[ishape->size - 1];
-  int bh = self->parents[1]->dview->shape->items[ishape->size - 2];
-  int bs = ishape->size == 3 ? self->parents[1]->dview->shape->items[0] : 1;
+  int bw = self->parents[1]->v->shape->items[ishape->size - 1];
+  int bh = self->parents[1]->v->shape->items[ishape->size - 2];
+  int bs = ishape->size == 3 ? self->parents[1]->v->shape->items[0] : 1;
 
   assert(ww == bh && "matmul can't do backprop on this shape");
   // weights: (inputs * transpose self.grad) sum, add
@@ -1054,9 +963,9 @@ void _matmul_backwards(tensor *self) {
     tensor *sum_grads = tensor_sum(mm, 0, false);
     tensor *grads = _transpose(sum_grads);
 
-    intarray* squeezed_shape = intarray_squeeze(grads->dview->shape);
-    intarray_free(grads->dview->shape);
-    grads->dview->shape = squeezed_shape;
+    intarray *squeezed_shape = intarray_squeeze(grads->v->shape);
+    intarray_free(grads->v->shape);
+    grads->v->shape = squeezed_shape;
 
     tensor *acc_grads = tensor_add(grads, self->parents[0]->grads, false);
     tensor_free(grads);
@@ -1081,19 +990,19 @@ void _matmul_backwards(tensor *self) {
 // for now, inputs will be 2d or 3d
 // shouldn't be that hard to generalize
 tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads) {
-  int asize = a->dview->shape->size;
-  int bsize = b->dview->shape->size;
+  int asize = a->v->shape->size;
+  int bsize = b->v->shape->size;
   assert(asize == 2 || asize == 3);
   assert(bsize == 2 || bsize == 3);
 
-  int aw = a->dview->shape->items[asize - 1];
-  int ah = a->dview->shape->items[asize - 2];
+  int aw = a->v->shape->items[asize - 1];
+  int ah = a->v->shape->items[asize - 2];
 
-  int bw = b->dview->shape->items[bsize - 1];
-  int bh = b->dview->shape->items[bsize - 2];
+  int bw = b->v->shape->items[bsize - 1];
+  int bh = b->v->shape->items[bsize - 2];
 
-  int as = asize == 3 ? a->dview->shape->items[0] : 1;
-  int bs = bsize == 3 ? b->dview->shape->items[0] : 1;
+  int as = asize == 3 ? a->v->shape->items[0] : 1;
+  int bs = bsize == 3 ? b->v->shape->items[0] : 1;
 
   assert(aw == bh && "Tensors are not the correct shape");
   assert(as == bs || as == 1 ||
@@ -1123,8 +1032,8 @@ tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads) {
   for (int batch = 0; batch < bs; batch++) {
     oi->items[0] = batch;
 
-    ai->items[0] = min(batch, as-1);
-    bi->items[0] = min(batch, bs-1);
+    ai->items[0] = min(batch, as - 1);
+    bi->items[0] = min(batch, bs - 1);
 
     for (int k = 0; k < ah; k++) {
       oi->items[1] = k;
@@ -1151,17 +1060,17 @@ tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads) {
 }
 
 void _conv2d_backwards(tensor *self) {
-  int batch_size = self->dview->shape->items[0];
-  int cout = self->dview->shape->items[1];
-  int cin = self->parents[0]->dview->shape->items[1];
-  int win = self->parents[0]->dview->shape->items[3];
-  int hin = self->parents[0]->dview->shape->items[2];
-  int kernel_size = self->parents[1]->dview->shape->items[3];
+  int batch_size = self->v->shape->items[0];
+  int cout = self->v->shape->items[1];
+  int cin = self->parents[0]->v->shape->items[1];
+  int win = self->parents[0]->v->shape->items[3];
+  int hin = self->parents[0]->v->shape->items[2];
+  int kernel_size = self->parents[1]->v->shape->items[3];
 
   // input gradients
   // TODO: refactor into one
   if (self->parents[0]->requires_grad) {
-    tensor *grads = tensor_zeros(self->parents[0]->dview->shape, false);
+    tensor *grads = tensor_zeros(self->parents[0]->v->shape, false);
     intarray *input_grad_index = intarray_zeros(4);
     intarray *kernel_index = intarray_zeros(4);
     intarray *output_grad_index = intarray_zeros(4);
@@ -1216,7 +1125,7 @@ void _conv2d_backwards(tensor *self) {
 
   // kernel gradients
   if (self->parents[1]->requires_grad) {
-    tensor *grads = tensor_zeros(self->parents[1]->dview->shape, false);
+    tensor *grads = tensor_zeros(self->parents[1]->v->shape, false);
     intarray *input_index = intarray_zeros(4);
     intarray *kernel_grad_index = intarray_zeros(4);
     intarray *output_grad_index = intarray_zeros(4);
@@ -1278,10 +1187,10 @@ void _conv2d_backwards(tensor *self) {
 // output shape: (batch size, cout, hout, wout)
 // should add groups
 tensor *tensor_conv2d(tensor *input, tensor *kernels, bool track_grads) {
-  intarray *input_shape = input->dview->shape;
+  intarray *input_shape = input->v->shape;
   assert(input_shape->size == 4);
 
-  intarray *kernels_shape = kernels->dview->shape;
+  intarray *kernels_shape = kernels->v->shape;
   assert(kernels_shape->size == 4);
 
   assert(kernels_shape->items[1] == input_shape->items[1]);
@@ -1358,7 +1267,7 @@ tensor *tensor_conv2d(tensor *input, tensor *kernels, bool track_grads) {
 }
 
 void _square_backwards(tensor *self) {
-  tensor *twos = tensor_fill(self->dview->shape, 2, false);
+  tensor *twos = tensor_fill(self->v->shape, 2, false);
   tensor *grads = tensor_mul(twos, self->parents[0], false);
   tensor *mul_self_grads = tensor_mul(grads, self->grads, false);
   tensor *acc_grads =
@@ -1377,7 +1286,7 @@ tensor *tensor_square(tensor *input, bool track_grads) {
     parents[0] = input;
   }
 
-  tensor *t = tensor_zeros(input->dview->shape, requires_grad);
+  tensor *t = tensor_zeros(input->v->shape, requires_grad);
   t->parents = parents;
   t->op = SQUARE;
   t->_backwards = &_square_backwards;
@@ -1393,7 +1302,7 @@ void _sqrt_backwards(tensor *self) {
   for (int i = 0; i < copy_input->data->size; i++) {
     copy_input->data->buffer[i] = pow(copy_input->data->buffer[i], -.5);
   }
-  tensor *halfs = tensor_fill(self->dview->shape, 1.0 / 2, false);
+  tensor *halfs = tensor_fill(self->v->shape, 1.0 / 2, false);
   tensor *grads = tensor_mul(halfs, copy_input, false);
   tensor *mul_self_grads = tensor_mul(grads, self->grads, false);
   tensor *acc_grads =
@@ -1413,7 +1322,7 @@ tensor *tensor_sqrt(tensor *input, bool track_grads) {
     parents = (tensor **)malloc(tensor_op_operands(SQRT) * sizeof(tensor *));
     parents[0] = input;
   }
-  tensor *t = tensor_zeros(input->dview->shape, requires_grad);
+  tensor *t = tensor_zeros(input->v->shape, requires_grad);
   t->parents = parents;
   t->op = SQRT;
   t->_backwards = &_sqrt_backwards;
@@ -1439,7 +1348,7 @@ tensor *tensor_exp(tensor *input, bool track_grads) {
     parents = (tensor **)malloc(tensor_op_operands(EXP) * sizeof(tensor *));
     parents[0] = input;
   }
-  tensor *t = tensor_zeros(input->dview->shape, requires_grad);
+  tensor *t = tensor_zeros(input->v->shape, requires_grad);
   t->parents = parents;
   t->op = EXP;
   t->_backwards = &_exp_backwards;
@@ -1450,7 +1359,7 @@ tensor *tensor_exp(tensor *input, bool track_grads) {
 }
 
 void _log_backwards(tensor *self) {
-  tensor *copy_input = tensor_zeros(self->parents[0]->dview->shape, false);
+  tensor *copy_input = tensor_zeros(self->parents[0]->v->shape, false);
   for (int i = 0; i < copy_input->data->size; i++) {
     copy_input->data->buffer[i] = 1.0f / self->parents[0]->data->buffer[i];
   }
@@ -1469,7 +1378,7 @@ tensor *tensor_log(tensor *input, bool track_grads) {
     parents = (tensor **)malloc(tensor_op_operands(LOG) * sizeof(tensor *));
     parents[0] = input;
   }
-  tensor *t = tensor_zeros(input->dview->shape, requires_grad);
+  tensor *t = tensor_zeros(input->v->shape, requires_grad);
   t->parents = parents;
   t->op = LOG;
   t->_backwards = &_log_backwards;
@@ -1496,7 +1405,7 @@ void _reciprocal_backwards(tensor *self) {
 }
 
 tensor *tensor_reciprocal(tensor *a, bool track_grads) {
-  intarray *copy = intarray_copy(a->dview->shape);
+  intarray *copy = intarray_copy(a->v->shape);
 
   bool requires_grad = track_grads && a->requires_grad;
   tensor **parents = NULL;
