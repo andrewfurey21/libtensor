@@ -55,6 +55,17 @@ void intarray_print(intarray *s);
 intarray *intarray_pad_left(intarray *s, int new_size);
 intarray *intarray_squeeze(intarray *s);
 
+// View
+
+typedef struct {
+  intarray *shape;
+} view;
+
+view* view_new(intarray* shape);
+uint64_t view_index(view *v, intarray *index);
+view* view_copy(view *v);
+void view_free(view *view);
+
 // Storage
 
 typedef struct {
@@ -70,15 +81,8 @@ float storage_getitem(storage *s, uint64_t index);
 void storage_setitem(storage *s, uint64_t index, float val);
 storage *storage_copy(storage *s);
 void storage_to_zeros(storage *s);
-
-// View
-
-typedef struct {
-  intarray *shape;
-} view;
-
-view* view_new(intarray* shape);
-void view_free(view *view);
+float storage_getindex(storage *data, view* v, intarray *index);
+void storage_setindex(storage *data, view *v, intarray* index, float num);
 
 // tensor
 
@@ -100,8 +104,8 @@ struct tensor {
 tensor *tensor_zeros(intarray *s, bool requires_grad);
 tensor *tensor_ones(intarray *s, bool requires_grad);
 tensor *tensor_from_buffer(intarray *s, float *buffer, bool requires_grads);
-float tensor_getindex(tensor *self, intarray *s);
-void tensor_setindex(tensor *self, intarray *s, float num);
+float tensor_getindex(tensor *self, intarray *index);
+void tensor_setindex(tensor *self, intarray *index, float num);
 tensor *tensor_fill(intarray *s, float fill_value, bool requires_grad);
 tensor *tensor_linspace(intarray *s, float min, float max, bool requires_grad);
 tensor *tensor_uniform(intarray *s, float min, float max, bool requires_grad);

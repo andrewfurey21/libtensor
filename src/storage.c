@@ -42,3 +42,13 @@ void storage_to_zeros(storage *s) {
   free(s->buffer);
   s->buffer = (float *)calloc(s->size, sizeof(float));
 }
+
+float storage_getindex(storage *data, view* v, intarray *index) {
+  uint64_t physical_index = view_index(v, index);
+  return storage_getitem(data, physical_index);
+}
+
+void storage_setindex(storage *data, view *v, intarray* index, float num) {
+  uint64_t physical_index = view_index(v, index);
+  storage_setitem(data, physical_index, num);
+}
