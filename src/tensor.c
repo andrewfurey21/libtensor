@@ -13,6 +13,7 @@
 #include "../include/tensor.h"
 
 #define max(a, b) ((a) > (b) ? a : b)
+#define min(a, b) ((a) < (b) ? a : b)
 
 // TODO:
 // rename a/s in function parameters to original_tensor, shape, etc.
@@ -163,36 +164,52 @@ tensor *tensor_from_buffer(intarray *s, float *buffer, bool requires_grad) {
   return ret;
 }
 
-float tensor_getindex(tensor *self, intarray *s) {
-  intarray *self_shape = self->dview->shape->size < s->size
-                             ? intarray_add_one(self->dview->shape)
-                             : self->dview->shape;
-  uint64_t index = 0;
-  for (int i = 0; i < s->size; i++) {
+// TODO: optimization: pad once, then unpad.
+// so shouldn't be doing pad here.
+float tensor_getindex(tensor *self, intarray *index) {
+  assert(index->size >= self->dview->shape->size);
+
+  // TODO: maybe just copy self->dview->shape and get rid of if
+  bool need_to_free = self->dview->shape->size < index->size;
+  intarray *self_shape =
+      self->dview->shape->size < index->size
+          ? intarray_pad_left(self->dview->shape, index->size)
+          : self->dview->shape;
+
+  uint64_t index_buffer = 0;
+  for (int i = 0; i < index->size; i++) {
     uint64_t mul = 1;
-    for (int j = i + 1; j < s->size; j++) {
+    for (int j = i + 1; j < index->size; j++) {
       mul *= self_shape->items[j];
     }
-    index += mul * s->items[i];
+    index_buffer += mul * index->items[i];
   }
-  assert(index < intarray_prod(self_shape));
-  return self->data->buffer[index];
+  assert(index_buffer < intarray_prod(self_shape));
+  if (need_to_free) {
+    intarray_free(self_shape);
+  }
+  return self->data->buffer[index_buffer];
 }
 
-void tensor_setindex(tensor *self, intarray *s, float num) {
-  intarray *self_shape = self->dview->shape->size < s->size
-                             ? intarray_add_one(self->dview->shape)
-                             : self->dview->shape;
-  uint64_t index = 0;
-  for (int i = 0; i < s->size; i++) {
+void tensor_setindex(tensor *self, intarray *index, float num) {
+  intarray *self_shape =
+      self->dview->shape->size < index->size
+          ? intarray_pad_left(self->dview->shape, index->size)
+          : self->dview->shape;
+  bool need_to_free = self->dview->shape->size < index->size;
+  uint64_t index_buffer = 0;
+  for (int i = 0; i < index->size; i++) {
     uint64_t mul = 1;
-    for (int j = i + 1; j < s->size; j++) {
+    for (int j = i + 1; j < index->size; j++) {
       mul *= self_shape->items[j];
     }
-    index += mul * s->items[i];
+    index_buffer += mul * index->items[i];
   }
-  assert(index < intarray_prod(self->dview->shape));
-  self->data->buffer[index] = num;
+  assert(index_buffer < intarray_prod(self->dview->shape));
+  if (need_to_free) {
+    intarray_free(self_shape);
+  }
+  self->data->buffer[index_buffer] = num;
 }
 
 tensor *tensor_fill(intarray *s, float fill_value, bool requires_grad) {
