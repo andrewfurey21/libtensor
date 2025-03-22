@@ -20,30 +20,35 @@
 // double check backwards functions are accumulating gradients and not just
 // reseting them
 
-tensor *tensor_zeros(intarray *s, bool requires_grad) {
-  uint64_t size = intarray_prod(s);
-  assert(size != 0);
+tensor *setup_tensor(intarray *shape, storage *data, bool requires_grad,
+                     tensor **parents, tensor_op op,
+                     void (*pfn_backprop)(tensor *self)) {
 
-  intarray *copy = intarray_copy(s);
-  storage *data = storage_zeros(size);
-
-  tensor *grads = NULL;
-  if (requires_grad) {
-    grads = tensor_zeros(s, false);
-  }
+  uint64_t size = intarray_prod(shape);
+  assert(size >= 0);
 
   tensor *t = (tensor *)malloc(sizeof(tensor));
-  view *v = view_new(s);
+  tensor *grads = NULL;
+  view *v = view_new(shape);
   t->v = v;
-  t->v->shape = copy;
+
+  if (requires_grad) {
+    grads = tensor_zeros(shape, false);
+  }
 
   t->data = data;
   t->requires_grad = requires_grad;
-  t->parents = NULL;
-  t->op = NOOP;
+  t->parents = parents;
+  t->op = op;
   t->grads = grads;
-  t->_backwards = NULL;
+  t->_backwards = pfn_backprop;
   return t;
+}
+
+tensor *tensor_zeros(intarray *s, bool requires_grad) {
+  uint64_t size = intarray_prod(s);
+  storage *data = storage_zeros(size);
+  return setup_tensor(s, data, requires_grad, NULL, NOOP, NULL);
 }
 
 tensor *tensor_ones(intarray *s, bool requires_grad) {
@@ -57,28 +62,7 @@ tensor *tensor_ones(intarray *s, bool requires_grad) {
 tensor *tensor_from_buffer(intarray *s, float *buffer, bool requires_grad) {
   uint64_t size = intarray_prod(s);
   storage *data = storage_from_buffer(size, buffer);
-
-  tensor *ret = (tensor *)malloc(sizeof(tensor));
-  intarray *copy = intarray_copy(s);
-  intarray *strides = intarray_ones(copy->size);
-
-  view *v = (view *)malloc(sizeof(view));
-  ret->v = v;
-
-  ret->v->shape = copy;
-
-  ret->data = data;
-
-  tensor *grads = NULL;
-  if (requires_grad) {
-    grads = tensor_zeros(s, false);
-  }
-  ret->op = NOOP;
-  ret->parents = NULL;
-  ret->requires_grad = requires_grad;
-  ret->_backwards = NULL;
-  ret->grads = grads;
-  return ret;
+  return setup_tensor(s, data, requires_grad, NULL, NOOP, NULL);
 }
 
 // TODO: optimization: pad once, then unpad.
@@ -166,33 +150,13 @@ tensor *tensor_uniformint(intarray *s, float min, float max,
 }
 
 tensor *tensor_copy(tensor *original, bool requires_grad) {
-  intarray *shape = intarray_copy(original->v->shape);
-  tensor *grads = NULL;
-  if (requires_grad) {
-    grads = tensor_zeros(shape, false);
-  }
-
-  tensor *t = (tensor *)malloc(sizeof(tensor));
-
-  view *v = (view *)malloc(sizeof(view));
-  t->v = v;
-  t->v->shape = shape;
-
-  t->data = storage_copy(original->data);
-  t->requires_grad = requires_grad;
-  t->parents = NULL;
-  t->op = NOOP;
-  t->grads = grads;
-  t->_backwards = NULL;
-
-  return t;
+  storage *data = storage_copy(original->data);
+  return setup_tensor(original->v->shape, data, requires_grad, NULL, NOOP,
+                      NULL);
 }
 
-// where does this get used?
-// what happens if you call this during backprop?
 void tensor_to_zeros(tensor *t) { storage_to_zeros(t->data); }
 
-// same here
 void tensor_to_n(struct tensor *t, float n) {
   for (int i = 0; i < t->data->size; i++) {
     storage_setitem(t->data, i, n);
@@ -226,10 +190,9 @@ void tensor_print(tensor *t, bool show_buffer, bool show_grads) {
   }
 }
 
-// should probably free any grads from children.
 void tensor_free(tensor *t) {
+  storage_free(t->data);
   view_free(t->v);
-
   free(t->parents);
   if (t->requires_grad) {
     tensor_free(t->grads); // make sure grads cant have grads
