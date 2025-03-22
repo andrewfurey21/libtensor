@@ -122,7 +122,7 @@ typedef struct {
 
 int main(void) {
   srand(time(NULL));
-  int batch_size = envvar("BS", 1);
+  int batch_size = envvar("BS", 8);
 
   intarray *input_batch_shape = intarray_build(4, batch_size, 1, 28, 28);
   tensor *input_batch = tensor_zeros(input_batch_shape, false);
@@ -132,7 +132,7 @@ int main(void) {
 
   load_mnist_batch(input_batch, output_batch, "../data/mnist_test.csv", 10000,
                    batch_size);
-  // display_mnist_image(input_batch, output_batch, NULL);
+  display_mnist_image(input_batch, output_batch, NULL);
 
   mnist_cnn model;
 
@@ -165,8 +165,13 @@ int main(void) {
   // Linear (Layer 3)
   tensor *l4 = tensor_matmul(model.linear_layer_2, l3_activations, true);
   tensor *logits = flatten(l4, 1);
-  tensor_print(logits, true, true);
-  // // log softmax
-  // tensor *log_probs = log_softmax(logits);
-  // tensor_print(log_probs, true, false);
+
+  tensor *loss = tensor_sum(logits, 1, true);
+
+  intarray* unit_shape = intarray_build(1, 1);
+  tensor *scalar_loss = tensor_reshape(loss, unit_shape, true);
+
+  graph* network = graph_build(scalar_loss);
+  graph_zeroed(network);
+  graph_backprop(network);
 }
