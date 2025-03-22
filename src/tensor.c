@@ -19,6 +19,7 @@
 // rename a/s in function parameters to original_tensor, shape, etc.
 // double check backwards functions are accumulating gradients and not just
 // reseting them
+// double check data->buffer[i] isn't being used.
 
 tensor *setup_tensor(intarray *shape, storage *data, bool requires_grad,
                      tensor **parents, tensor_op op,
@@ -240,8 +241,6 @@ void _add_backwards(tensor *self) {
 tensor *tensor_add(tensor *a, tensor *b, bool track_grads) {
   assert(intarray_equal(a->v->shape, b->v->shape) &&
          "Tensors are not the same shape.");
-  intarray *copy = intarray_copy(a->v->shape); // TODO: free copy!!
-
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tensor **parents = NULL;
   if (requires_grad) {
@@ -249,16 +248,13 @@ tensor *tensor_add(tensor *a, tensor *b, bool track_grads) {
     parents[0] = a;
     parents[1] = b;
   }
-
-  tensor *t = tensor_zeros(copy, requires_grad);
-  intarray_free(copy);
-  t->parents = parents;
-  t->op = ADD;
-  t->_backwards = &_add_backwards;
+  storage *data = storage_zeros(a->data->size);
   for (uint64_t i = 0; i < a->data->size; i++) {
-    t->data->buffer[i] = a->data->buffer[i] + b->data->buffer[i];
+    float value = storage_getitem(a->data, i) + storage_getitem(b->data, i);
+    storage_setitem(data, i, value);
   }
-  return t;
+  return setup_tensor(a->v->shape, data, requires_grad, parents, ADD,
+                      _add_backwards);
 }
 
 void _sub_backwards(tensor *self) {
@@ -271,15 +267,13 @@ void _sub_backwards(tensor *self) {
   if (self->parents[1]->requires_grad) {
     tensor *grads_1 = tensor_sub(self->parents[1]->grads, self->grads, false);
     tensor_free(self->parents[1]->grads);
-    self->parents[1]->grads = grads_1; // TODO: in place?
+    self->parents[1]->grads = grads_1;
   }
 }
 
 tensor *tensor_sub(tensor *a, tensor *b, bool track_grads) {
   assert(intarray_equal(a->v->shape, b->v->shape) &&
          "Tensors are not the same shape.");
-  intarray *copy = intarray_copy(a->v->shape); // TODO: free copy??
-
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tensor **parents = NULL;
   if (requires_grad) {
@@ -288,14 +282,13 @@ tensor *tensor_sub(tensor *a, tensor *b, bool track_grads) {
     parents[1] = b;
   }
 
-  tensor *t = tensor_zeros(copy, requires_grad);
-  t->parents = parents;
-  t->op = SUB;
-  t->_backwards = &_sub_backwards;
+  storage *data = storage_zeros(a->data->size);
   for (uint64_t i = 0; i < a->data->size; i++) {
-    t->data->buffer[i] = a->data->buffer[i] - b->data->buffer[i];
+    float value = storage_getitem(a->data, i) - storage_getitem(b->data, i);
+    storage_setitem(data, i, value);
   }
-  return t;
+  return setup_tensor(a->v->shape, data, requires_grad, parents, SUB,
+                      _sub_backwards);
 }
 
 void _mul_backwards(tensor *self) {
@@ -319,8 +312,6 @@ void _mul_backwards(tensor *self) {
 tensor *tensor_mul(tensor *a, tensor *b, bool track_grads) {
   assert(intarray_equal(a->v->shape, b->v->shape) &&
          "Tensors are not the same shape.");
-  intarray *copy = intarray_copy(a->v->shape);
-
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tensor **parents = NULL;
   if (requires_grad) {
@@ -328,15 +319,13 @@ tensor *tensor_mul(tensor *a, tensor *b, bool track_grads) {
     parents[0] = a;
     parents[1] = b;
   }
-
-  tensor *t = tensor_zeros(copy, requires_grad);
-  t->parents = parents;
-  t->op = MUL;
-  t->_backwards = &_mul_backwards;
+  storage *data = storage_zeros(a->data->size);
   for (uint64_t i = 0; i < a->data->size; i++) {
-    t->data->buffer[i] = a->data->buffer[i] * b->data->buffer[i];
+    float value = storage_getitem(a->data, i) * storage_getitem(b->data, i);
+    storage_setitem(data, i, value);
   }
-  return t;
+  return setup_tensor(a->v->shape, data, requires_grad, parents, MUL,
+                      _mul_backwards);
 }
 
 void _sum_backwards(tensor *self) {
@@ -410,6 +399,7 @@ void _sum_backwards(tensor *self) {
 // axis=-1 => sum up all elements
 // currently always keepdims, except for axis=-1
 // could seriously use some tests here
+// TODO: use setup tensor
 tensor *tensor_sum(tensor *a, int axis, bool track_grads) {
   assert(axis >= -1 && axis < (int)a->v->shape->size);
   intarray *new_shape;
@@ -467,6 +457,8 @@ tensor *tensor_sum(tensor *a, int axis, bool track_grads) {
       }
     }
   }
+
+  intarray_free(new_shape);
   return t;
 }
 
@@ -490,25 +482,21 @@ void _relu_backwards(tensor *self) {
 }
 
 tensor *tensor_relu(tensor *a, bool track_grads) {
-  intarray *copy = intarray_copy(a->v->shape);
   tensor **parents = NULL;
-
   bool requires_grad = a->requires_grad && track_grads;
   if (requires_grad) {
     parents = (tensor **)malloc(tensor_op_operands(RELU) * sizeof(tensor *));
     parents[0] = a;
   }
 
-  tensor *t = tensor_zeros(copy, requires_grad);
-  t->parents = parents;
-  t->op = RELU;
-  t->_backwards = &_relu_backwards;
-
+  storage *data = storage_zeros(a->data->size);
   for (uint64_t i = 0; i < a->data->size; i++) {
-    t->data->buffer[i] = a->data->buffer[i] * (a->data->buffer[i] > 0);
+    float value = storage_getitem(a->data, i);
+    storage_setitem(data, i, value * (value > 0));
   }
 
-  return t;
+  return setup_tensor(a->v->shape, data, requires_grad, parents, RELU,
+                      _relu_backwards);
 }
 
 // Reshape
@@ -523,24 +511,16 @@ void _reshape_backwards(tensor *self) {
 }
 
 tensor *tensor_reshape(tensor *a, intarray *new_shape, bool track_grads) {
-  intarray *new_shape_copy = intarray_copy(new_shape);
   assert(intarray_prod(new_shape) == intarray_prod(a->v->shape));
   tensor **parents = NULL;
-  tensor *reshaped_grads = NULL;
   bool requires_grad = a->requires_grad && track_grads;
   if (requires_grad) {
     parents = (tensor **)malloc(tensor_op_operands(RESHAPE) * sizeof(tensor *));
     parents[0] = a;
-    reshaped_grads = tensor_reshape(a->grads, new_shape_copy, false);
   }
-  tensor *t = tensor_copy(a, requires_grad);
-  free(t->grads);
-  t->v->shape = new_shape_copy;
-  t->parents = parents;
-  t->op = RESHAPE;
-  t->_backwards = &_reshape_backwards;
-  t->grads = reshaped_grads;
-  return t;
+  storage *data = storage_copy(a->data);
+  return setup_tensor(new_shape, data, requires_grad, parents, RESHAPE,
+                      _reshape_backwards);
 }
 
 // Expand
@@ -592,6 +572,7 @@ void _expand_backwards(tensor *self) {
 // can expand axis where dim>=1
 // basically backwards sum
 // follows broadcasting rules, cannot expand dim that isn't 1
+// TODO: setup tensor
 tensor *tensor_expand(tensor *original_tensor, uint64_t axis, uint64_t factor,
                       bool track_grads) {
   intarray *new_shape = intarray_copy(original_tensor->v->shape);
@@ -660,25 +641,19 @@ void _neg_backwards(tensor *self) {
 }
 
 tensor *tensor_neg(tensor *a, bool track_grads) {
-  intarray *shape = intarray_copy(a->v->shape);
-
   bool requires_grad = track_grads && a->requires_grad;
-  tensor *t = tensor_zeros(shape, requires_grad);
+  storage *data = storage_zeros(a->data->size);
   tensor **parents = NULL;
   if (track_grads) {
     parents = (tensor **)malloc(tensor_op_operands(NEG) * sizeof(tensor *));
     parents[0] = a;
   }
-
-  t->parents = parents;
-  t->op = NEG;
-  t->_backwards = &_neg_backwards;
-
   for (uint64_t i = 0; i < a->data->size; i++) {
     float value = storage_getitem(a->data, i);
-    storage_setitem(t->data, i, -value);
+    storage_setitem(data, i, -value);
   }
-  return t;
+  return setup_tensor(a->v->shape, data, requires_grad, parents, NEG,
+                      _neg_backwards);
 }
 
 // still assuming square kernel
@@ -782,6 +757,7 @@ void _maxpool2d_backwards(tensor *self) {
 // stride is kernel size
 // no dilation, padding. ceilmode=False.
 // 4d, 3d, 2d only.
+// TODO: use setup tensor
 tensor *tensor_maxpool2d(tensor *input, int kernel_size, bool track_grads) {
   intarray *input_shape = input->v->shape;
   int x_index = input_shape->size - 1;
@@ -854,8 +830,6 @@ tensor *tensor_maxpool2d(tensor *input, int kernel_size, bool track_grads) {
 
 // really need broadcasting
 // really hacky impl
-// TODO:
-
 // swaps last two dims
 tensor *_transpose(tensor *original) {
   tensor *new = tensor_zeros(original->v->shape, false);
@@ -1249,14 +1223,13 @@ tensor *tensor_square(tensor *input, bool track_grads) {
     parents[0] = input;
   }
 
-  tensor *t = tensor_zeros(input->v->shape, requires_grad);
-  t->parents = parents;
-  t->op = SQUARE;
-  t->_backwards = &_square_backwards;
-  for (uint64_t i = 0; i < input->data->size; i++) {
-    t->data->buffer[i] = pow(input->data->buffer[i], 2);
+  storage *data = storage_zeros(input->data->size);
+  for (uint64_t i = 0; i < data->size; i++) {
+    float value = storage_getitem(input->data, i);
+    storage_setitem(data, i, value * value);
   }
-  return t;
+  return setup_tensor(input->v->shape, data, requires_grad, parents, SQUARE,
+                      _square_backwards);
 }
 
 void _sqrt_backwards(tensor *self) {
@@ -1285,17 +1258,15 @@ tensor *tensor_sqrt(tensor *input, bool track_grads) {
     parents = (tensor **)malloc(tensor_op_operands(SQRT) * sizeof(tensor *));
     parents[0] = input;
   }
-  tensor *t = tensor_zeros(input->v->shape, requires_grad);
-  t->parents = parents;
-  t->op = SQRT;
-  t->_backwards = &_sqrt_backwards;
+  storage *data = storage_zeros(input->data->size);
   for (uint64_t i = 0; i < input->data->size; i++) {
-    t->data->buffer[i] = sqrtf(input->data->buffer[i]);
+    float value = sqrtf(storage_getitem(input->data, i));
+    storage_setitem(data, i, value);
   }
-  return t;
+  return setup_tensor(input->v->shape, data, requires_grad, parents, SQRT,
+                      _sqrt_backwards);
 }
 
-// TODO: inplace instead?
 void _exp_backwards(tensor *self) {
   tensor *mul = tensor_mul(self, self->grads, false);
   tensor *acc_grads = tensor_add(mul, self->parents[0]->grads, false);
@@ -1311,14 +1282,13 @@ tensor *tensor_exp(tensor *input, bool track_grads) {
     parents = (tensor **)malloc(tensor_op_operands(EXP) * sizeof(tensor *));
     parents[0] = input;
   }
-  tensor *t = tensor_zeros(input->v->shape, requires_grad);
-  t->parents = parents;
-  t->op = EXP;
-  t->_backwards = &_exp_backwards;
+  storage *data = storage_zeros(input->data->size);
   for (uint64_t i = 0; i < input->data->size; i++) {
-    t->data->buffer[i] = exp(input->data->buffer[i]);
+    float value = exp(storage_getitem(input->data, i));
+    storage_setitem(data, i, value);
   }
-  return t;
+  return setup_tensor(input->v->shape, data, requires_grad, parents, EXP,
+                      _exp_backwards);
 }
 
 void _log_backwards(tensor *self) {
@@ -1341,14 +1311,13 @@ tensor *tensor_log(tensor *input, bool track_grads) {
     parents = (tensor **)malloc(tensor_op_operands(LOG) * sizeof(tensor *));
     parents[0] = input;
   }
-  tensor *t = tensor_zeros(input->v->shape, requires_grad);
-  t->parents = parents;
-  t->op = LOG;
-  t->_backwards = &_log_backwards;
+  storage *data = storage_zeros(input->data->size);
   for (uint64_t i = 0; i < input->data->size; i++) {
-    t->data->buffer[i] = logf(input->data->buffer[i]);
+    float value = logf(storage_getitem(input->data, i));
+    storage_setitem(data, i, value);
   }
-  return t;
+  return setup_tensor(input->v->shape, data, requires_grad, parents, LOG,
+                      _log_backwards);
 }
 
 void _reciprocal_backwards(tensor *self) {
@@ -1368,8 +1337,6 @@ void _reciprocal_backwards(tensor *self) {
 }
 
 tensor *tensor_reciprocal(tensor *a, bool track_grads) {
-  intarray *copy = intarray_copy(a->v->shape);
-
   bool requires_grad = track_grads && a->requires_grad;
   tensor **parents = NULL;
   if (requires_grad) {
@@ -1377,13 +1344,11 @@ tensor *tensor_reciprocal(tensor *a, bool track_grads) {
         (tensor **)malloc(tensor_op_operands(RECIPROCAL) * sizeof(tensor *));
     parents[0] = a;
   }
-
-  tensor *t = tensor_zeros(copy, requires_grad);
-  t->parents = parents;
-  t->op = RECIPROCAL;
-  t->_backwards = &_reciprocal_backwards;
+  storage *data = storage_zeros(a->data->size);
   for (uint64_t i = 0; i < a->data->size; i++) {
-    t->data->buffer[i] = 1.0f / a->data->buffer[i];
+    float value = 1.0f / storage_getitem(a->data, i);
+    storage_setitem(data, i, value);
   }
-  return t;
+  return setup_tensor(a->v->shape, data, requires_grad, parents, RECIPROCAL,
+                      _reciprocal_backwards);
 }
