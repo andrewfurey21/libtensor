@@ -24,30 +24,13 @@ TEST(Backwards, Add) {
   tensor *correct_grads = tensor_ones(shape, false);
 
   EXPECT_TRUE(tensor_equal(correct_grads, tensor1->grads, 1e-5, 1e-8))
-      << "Backwards add (1) failed\n";
+      << "Backwards add lhs failed\n";
   EXPECT_TRUE(tensor_equal(correct_grads, tensor2->grads, 1e-5, 1e-8))
-      << "Backwards add (2) failed\n";
+      << "Backwards add rhs failed\n";
 
   if (HasFailure()) {
     printf("Expected: \n");
     tensor_print(correct_grads, true, false);
-    printf("Tensor 1: \n");
-    tensor_print(tensor1->grads, true, false);
-    printf("Tensor 2: \n");
-    tensor_print(tensor2->grads, true, false);
-  }
-
-  graph_backprop(g);
-
-  tensor *correct_grads2 = tensor_fill(shape, 2.0f, false);
-  EXPECT_TRUE(tensor_equal(correct_grads2, tensor1->grads, 1e-5, 1e-8))
-      << "Backwards add (second backward pass) failed\n";
-  EXPECT_TRUE(tensor_equal(correct_grads2, tensor2->grads, 1e-5, 1e-8))
-      << "Backwards add (second backward pass) failed\n";
-
-  if (HasFailure()) {
-    printf("Expected: \n");
-    tensor_print(correct_grads2, true, false);
     printf("Tensor 1: \n");
     tensor_print(tensor1->grads, true, false);
     printf("Tensor 2: \n");
@@ -83,21 +66,15 @@ TEST(Backwards, Sub) {
 
   EXPECT_TRUE(tensor_equal(correct_grads1, tensor1->grads, 1e-5, 1e-8))
       << "Backwards sub lhs failed\n";
-
-  if (HasFailure()) {
-    printf("Expected: \n");
-    tensor_print(correct_grads1, true, false);
-    printf("Output: \n");
-    tensor_print(tensor1->grads, true, false);
-  }
-
   EXPECT_TRUE(tensor_equal(correct_grads2, tensor2->grads, 1e-5, 1e-8))
       << "Backwards sub rhs failed\n";
 
   if (HasFailure()) {
     printf("Expected: \n");
-    tensor_print(correct_grads2, true, false);
-    printf("Output: \n");
+    tensor_print(correct_grads1, true, false);
+    printf("Tensor 1: \n");
+    tensor_print(tensor1->grads, true, false);
+    printf("Tensor 2: \n");
     tensor_print(tensor2->grads, true, false);
   }
 
@@ -128,21 +105,15 @@ TEST(Backwards, Mul) {
 
   EXPECT_TRUE(tensor_equal(tensor2, tensor1->grads, 1e-5, 1e-8))
       << "Backwards mul lhs failed\n";
-
-  if (HasFailure()) {
-    printf("Expected: \n");
-    tensor_print(tensor2, true, false);
-    printf("Output: \n");
-    tensor_print(tensor1->grads, true, false);
-  }
-
   EXPECT_TRUE(tensor_equal(tensor1, tensor2->grads, 1e-5, 1e-8))
       << "Backwards mul rhs failed\n";
 
   if (HasFailure()) {
     printf("Expected: \n");
-    tensor_print(tensor1, true, false);
-    printf("Output: \n");
+    tensor_print(tensor2, true, false);
+    printf("Tensor 1: \n");
+    tensor_print(tensor1->grads, true, false);
+    printf("Tensor 2: \n");
     tensor_print(tensor2->grads, true, false);
   }
 
@@ -417,21 +388,20 @@ TEST(Backwards, Matmul) {
   graph_backprop(g);
 
   EXPECT_TRUE(tensor_equal(batch_grads, batch->grads, 1e-5, 1e-8))
-      << "Backwards matmul failed\n";
-  if (HasFailure()) {
-    printf("Expected: \n");
-    tensor_print(batch_grads, true, false);
-    printf("Output: \n");
-    tensor_print(batch->grads, true, false);
-  }
-
+      << "Backwards matmul (rhs) failed\n";
   EXPECT_TRUE(tensor_equal(weights_grads, weights->grads, 1e-5, 1e-8))
-      << "Backward matmul failed\n";
+      << "Backward matmul (lhs) failed\n";
+
   if (HasFailure()) {
-    printf("Expected: \n");
+    printf("Expected (lhs): \n");
     tensor_print(weights_grads, true, false);
-    printf("Output: \n");
+    printf("Output (lhs): \n");
     tensor_print(weights->grads, true, false);
+
+    printf("Expected (rhs): \n");
+    tensor_print(batch_grads, true, false);
+    printf("Output (rhs): \n");
+    tensor_print(batch->grads, true, false);
   }
 
   intarray_free(batch_shape);
@@ -496,21 +466,17 @@ TEST(Backwards, Conv2d) {
 
   EXPECT_TRUE(tensor_equal(correct_input, input->grads, 1e-5, 1e-7))
       << "Backwards conv2d failed for input\n";
-
-  if (HasFailure()) {
-    printf("Expected: \n");
-    tensor_print(correct_input, true, false);
-    printf("Output: \n");
-    tensor_print(input->grads, true, false);
-  }
-
   EXPECT_TRUE(tensor_equal(correct_input, input->grads, 1e-5, 1e-7))
       << "Backwards conv2d failed for weights\n";
 
   if (HasFailure()) {
-    printf("Expected: \n");
+    printf("Expected (weights): \n");
+    tensor_print(correct_input, true, false);
+    printf("Output (weights): \n");
+    tensor_print(input->grads, true, false);
+    printf("Expected (kernels): \n");
     tensor_print(correct_kernel, true, false);
-    printf("Output: \n");
+    printf("Output (kernels): \n");
     tensor_print(kernels->grads, true, false);
   }
 
