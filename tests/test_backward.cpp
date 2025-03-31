@@ -123,13 +123,11 @@ TEST(Backwards, Mul) {
 
 TEST(Backwards, Sum) {
   intarray *shape = intarray_build(2, 4, 4);
-  intarray *new_shape = intarray_build(1, 4);
 
   tensor *tensor1 = tensor_linspace(shape, -10, 10, true);
 
   tensor *output1 = tensor_sum(tensor1, 1, true);
-  tensor *reshape_output1 = tensor_reshape(output1, new_shape, true);
-  tensor *sum = tensor_sum(reshape_output1, 0, true);
+  tensor *sum = tensor_sum(output1, -1, true);
 
   EXPECT_TRUE(output1->requires_grad);
   EXPECT_EQ(output1->parents[0], tensor1);
@@ -152,7 +150,36 @@ TEST(Backwards, Sum) {
   }
 
   intarray_free(shape);
-  intarray_free(new_shape);
+  tensor_free(correct_grads);
+  graph_free(g);
+}
+
+TEST(Backwards, SumShapeWithOnes) {
+  intarray *shape = intarray_build(4, 3, 1, 7, 1);
+
+  tensor *tensor1 = tensor_linspace(shape, -10, 10, true);
+
+  tensor *output1 = tensor_sum(tensor1, 1, true);
+  tensor *output2 = tensor_sum(output1, 2, true);
+  tensor *output3 = tensor_sum(output2, 0, true);
+  tensor *sum = tensor_sum(output1, -1, true);
+
+  graph *g = graph_build(sum);
+  graph_zeroed(g);
+  graph_backprop(g);
+
+  tensor *correct_grads = tensor_ones(shape, false);
+  EXPECT_TRUE(tensor_equal(correct_grads, tensor1->grads, 1e-5, 1e-8))
+      << "Backwards sum failed\n";
+
+  if (HasFailure()) {
+    printf("Expected: \n");
+    tensor_print(correct_grads, true, false);
+    printf("Output: \n");
+    tensor_print(tensor1->grads, true, false);
+  }
+
+  intarray_free(shape);
   tensor_free(correct_grads);
   graph_free(g);
 }

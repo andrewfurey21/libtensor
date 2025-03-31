@@ -625,6 +625,31 @@ TEST(Tensor, Sum5x5) {
   tensor_free(tensor1);
 }
 
+TEST(Tensor, SumShapeWithOnes) {
+  intarray *shape = intarray_build(4, 3, 1, 7, 1);
+  intarray *shape1 = intarray_build(4, 3, 1, 7, 1);
+  intarray *shape2 = intarray_build(4, 3, 1, 1, 1);
+  intarray *shape3 = intarray_build(4, 1, 1, 1, 1);
+
+  tensor *tensor1 = tensor_ones(shape1, false);
+  tensor *output1 = tensor_sum(tensor1, 1, false);
+  tensor *output2 = tensor_sum(output1, 2, false);
+  tensor *output3 = tensor_sum(output2, 0, false);
+
+  ASSERT_TRUE(intarray_equal(output1->vw->shape, shape1));
+  ASSERT_TRUE(intarray_equal(output2->vw->shape, shape2));
+  ASSERT_TRUE(intarray_equal(output3->vw->shape, shape3));
+
+  intarray_free(shape);
+  intarray_free(shape1);
+  intarray_free(shape2);
+  intarray_free(shape3);
+  tensor_free(tensor1);
+  tensor_free(output1);
+  tensor_free(output2);
+  tensor_free(output3);
+}
+
 TEST(Tensor, Relu3x4) {
   intarray *shape1 = intarray_build(2, 3, 4);
   float buffer1[] = {
