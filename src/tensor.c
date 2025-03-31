@@ -144,7 +144,7 @@ void tensor_print(tensor *input, bool show_buffer, bool show_grads) {
     intarray_print(input->grads->vw->shape);
     printf("gradient values: [ ");
     for (int i = 0; i < input->grads->data->size; i++) {
-      printf("%f, ", storage_getitem(input->data, i));
+      printf("%f, ", storage_getitem(input->grads->data, i));
     }
     printf("]\n");
   }
