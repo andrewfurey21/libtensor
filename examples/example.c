@@ -1,5 +1,3 @@
-// model based off of
-// https://github.com/pytorch/examples/blob/main/mnist/main.py
 #include "../include/tensor.h"
 #include "assert.h"
 #include "stdio.h"
@@ -7,7 +5,6 @@
 #include "string.h"
 #include <stdint.h>
 #include <time.h>
-
 
 int main(void) {
   srand(time(NULL));
@@ -34,5 +31,4 @@ int main(void) {
   tensor_print(input_batch, true, true);
   tensor_print(conv, true, true);
   tensor_print(output, true, true);
-
 }

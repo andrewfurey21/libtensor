@@ -1,6 +1,6 @@
 #include "../include/tensor.h"
-#include "gtest/gtest.h"
 #include "cmath"
+#include "gtest/gtest.h"
 
 TEST(Backwards, Add) {
   intarray *shape = intarray_build(1, 9);
@@ -374,7 +374,7 @@ TEST(Backwards, Matmul) {
   intarray *weights_shape = intarray_build(2, 3, 5);
 
   tensor *batch = tensor_linspace(batch_shape, -10, 20, true);
- tensor *weights = tensor_linspace(weights_shape, -10, 20, true);
+  tensor *weights = tensor_linspace(weights_shape, -10, 20, true);
 
   float batch_grads_buffer[] = {
       2.1428556, 2.1428556, 2.1428556, 2.1428556, 8.571428,
@@ -390,19 +390,17 @@ TEST(Backwards, Matmul) {
   tensor *batch_grads =
       tensor_from_buffer(batch_shape, batch_grads_buffer, false);
 
-  float weights_grads_buffer[] =
-  {-9.230768, 15.384615, 40., 64.61539, 89.230774,
-                                  -9.230768, 15.384615, 40., 64.61539, 89.230774,
-                                  -9.230768, 15.384615, 40., 64.61539, 89.230774};
+  float weights_grads_buffer[] = {-9.230768, 15.384615, 40.,       64.61539,
+                                  89.230774, -9.230768, 15.384615, 40.,
+                                  64.61539,  89.230774, -9.230768, 15.384615,
+                                  40.,       64.61539,  89.230774};
 
   tensor *weights_grads =
       tensor_from_buffer(weights_shape, weights_grads_buffer, false);
 
   tensor *output = tensor_matmul(weights, batch, true);
 
-  intarray *new_shape = intarray_build(1, 24);
-  tensor *reshaped = tensor_reshape(output, new_shape, true);
-  tensor *sum = tensor_sum(reshaped, 0, true);
+  tensor *sum = tensor_sum(output, -1, true);
 
   EXPECT_TRUE(output->requires_grad);
   EXPECT_EQ(output->parents[0], weights);
@@ -433,7 +431,6 @@ TEST(Backwards, Matmul) {
 
   intarray_free(batch_shape);
   intarray_free(weights_shape);
-  intarray_free(new_shape);
 
   graph_free(g);
   tensor_free(batch_grads);
@@ -456,8 +453,7 @@ TEST(Backwards, Conv2d) {
       15.714287,  34.285717,  55.714287,  40.000004, 21.428574, 30.000002,
       64.285721,  102.857147, 72.857147,  38.571430, 24.285713, 51.428574,
       81.428574,  57.142860,  30.000000,  14.285714, 30.000002, 47.142860,
-      32.857147,  17.142857
-  };
+      32.857147,  17.142857};
   tensor *correct_input =
       tensor_from_buffer(input_shape, correct_input_grads, false);
 
@@ -524,7 +520,7 @@ TEST(Backwards, Square) {
   tensor *output1 = tensor_square(tensor1, true);
   tensor *sum = tensor_sum(output1, 0, true);
 
-  tensor *correct=  tensor_zeros(tensor1->vw->shape, false);
+  tensor *correct = tensor_zeros(tensor1->vw->shape, false);
   for (int i = 0; i < intarray_prod(output1->vw->shape); i++) {
     correct->data->buffer[i] = tensor1->data->buffer[i] * 2;
   }
@@ -560,7 +556,7 @@ TEST(Backwards, Sqrt) {
   tensor *output1 = tensor_sqrt(tensor1, true);
   tensor *sum = tensor_sum(output1, 0, true);
 
-  tensor *correct=  tensor_zeros(tensor1->vw->shape, false);
+  tensor *correct = tensor_zeros(tensor1->vw->shape, false);
   for (int i = 0; i < intarray_prod(output1->vw->shape); i++) {
     correct->data->buffer[i] = 1.0f / (sqrtf(tensor1->data->buffer[i]) * 2.0f);
   }
@@ -596,7 +592,7 @@ TEST(Backwards, Exp) {
   tensor *output1 = tensor_exp(tensor1, true);
   tensor *sum = tensor_sum(output1, 0, true);
 
-  tensor *correct=  tensor_zeros(tensor1->vw->shape, false);
+  tensor *correct = tensor_zeros(tensor1->vw->shape, false);
   for (int i = 0; i < intarray_prod(output1->vw->shape); i++) {
     correct->data->buffer[i] = exp(tensor1->data->buffer[i]);
   }
@@ -632,7 +628,7 @@ TEST(Backwards, Log) {
   tensor *output1 = tensor_log(tensor1, true);
   tensor *sum = tensor_sum(output1, 0, true);
 
-  tensor *correct=  tensor_zeros(tensor1->vw->shape, false);
+  tensor *correct = tensor_zeros(tensor1->vw->shape, false);
   for (int i = 0; i < intarray_prod(output1->vw->shape); i++) {
     correct->data->buffer[i] = 1.0f / tensor1->data->buffer[i];
   }
@@ -668,7 +664,7 @@ TEST(Backwards, Reciprocal) {
   tensor *output1 = tensor_reciprocal(tensor1, true);
   tensor *sum = tensor_sum(output1, 0, true);
 
-  tensor *correct=  tensor_zeros(tensor1->vw->shape, false);
+  tensor *correct = tensor_zeros(tensor1->vw->shape, false);
   for (int i = 0; i < intarray_prod(output1->vw->shape); i++) {
     float val = tensor1->data->buffer[i];
     correct->data->buffer[i] = -1.0f / (val * val);
