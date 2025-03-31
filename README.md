@@ -1,15 +1,15 @@
 # libtensor
 
-<!--  TODO: Show image of generated graph + mnist example  -->
+<!--  TODO: Show gif of it solving mnist and generated graph -->
 
 Zero-dependency tensor library with automatic differentiation for deep learning.
 
 Does need GoogleTest for testing though.
 
-## current features
+## features
 
 - [x] tensor
-- [x] backwards mode autodifferentiation
+- [x] backwards mode autodiff
 - [x] ops
     - [x] add/sub, mul
     - [x] square, sqrt, log, exp
@@ -22,24 +22,40 @@ Does need GoogleTest for testing though.
     - [x] sparse categorical cross entropy
 - [ ] sgd optimizer
 
+## examples
+
+- [ ] mnist cnn
+
 ## notes
 
 Here's a mini example of working with tensors to compute gradients.
 
 ```c
-ttuple* input_shape = ttuple_build(2, 4, 6); // shape (4, 6)
-tt* a = tt_uniform(input_shape, -10, 10, true);
-tt* b = tt_uniform(input_shape, -10, 10, true);
-tt* a_b_mul = tt_mul(a, b);
-tt* sum = tt_sum(a_b_mul, -1);
-tgraph* comp_graph = tgraph_build(sum);
-tgraph_zeroed(comp_graph);
-tgraph_backprop(comp_graph);
+
+#include "../include/tensor.h"
+
+int main(void) {
+  intarray *ashape = intarray_build(2, 4, 6); // shape (4, 6)
+  tensor *a = tensor_linspace(ashape, -10, 10, true);
+
+  intarray *bshape = intarray_build(2, 6, 5); // shape (6, 5)
+  tensor *b = tensor_linspace(bshape, -10, 10, true);
+
+  tensor *matmul = tensor_matmul(a, b, true);
+  tensor *sum = tensor_sum(matmul, -1, true);
+
+  graph *network = graph_build(sum);
+  graph_zeroed(network);
+  graph_backprop(network);
+
+  graph_print(network, true, true);
+
+  intarray_free(ashape);
+  intarray_free(bshape);
+  graph_free(network);
+}
+
 ```
-
-## examples
-
-- [ ] mnist cnn
 
 ## future ideas
 
