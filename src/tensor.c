@@ -199,8 +199,7 @@ void _add_backwards(tensor *self) {
 }
 
 tensor *tensor_add(tensor *a, tensor *b, bool track_grads) {
-  assert(view_equal(a->vw, b->vw) &&
-         "Tensors are not the same shape.");
+  assert(view_equal(a->vw, b->vw) && "Tensors are not the same shape.");
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tensor **parents = NULL;
   if (requires_grad) {
@@ -232,8 +231,7 @@ void _sub_backwards(tensor *self) {
 }
 
 tensor *tensor_sub(tensor *a, tensor *b, bool track_grads) {
-  assert(view_equal(a->vw, b->vw) &&
-         "Tensors are not the same shape.");
+  assert(view_equal(a->vw, b->vw) && "Tensors are not the same shape.");
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tensor **parents = NULL;
   if (requires_grad) {
@@ -270,8 +268,7 @@ void _mul_backwards(tensor *self) {
 }
 
 tensor *tensor_mul(tensor *a, tensor *b, bool track_grads) {
-  assert(view_equal(a->vw, b->vw) &&
-         "Tensors are not the same shape.");
+  assert(view_equal(a->vw, b->vw) && "Tensors are not the same shape.");
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
   tensor **parents = NULL;
   if (requires_grad) {
@@ -827,11 +824,12 @@ tensor *_transpose(tensor *original) {
   return new;
 }
 
-// NOTE: optimization: pad once, then unpad.
+// NOTE: optimization: pad shape once, then unpad.
 // so shouldn't be doing pad here.
 void _matmul_backwards(tensor *self) {
   intarray *wshape = self->parents[0]->vw->shape;
   intarray *ishape = self->parents[1]->vw->shape;
+  bool batched = ishape->size == 3;
 
   int ww = self->parents[0]->vw->shape->items[wshape->size - 1];
   int wh = self->parents[0]->vw->shape->items[wshape->size - 2];
@@ -846,8 +844,14 @@ void _matmul_backwards(tensor *self) {
     tensor *i = self->parents[1];
     tensor *grads_t = _transpose(self->grads);
     tensor *mm = tensor_matmul(i, grads_t, false);
-    tensor *sum_grads = tensor_sum(mm, 0, false);
-    tensor *grads = _transpose(sum_grads);
+
+    tensor *sum_grads, *grads;
+    if (batched) {
+      sum_grads = tensor_sum(mm, 0, false);
+      grads = _transpose(sum_grads);
+    } else {
+      grads = _transpose(mm);
+    }
 
     intarray *squeezed_shape = intarray_squeeze(grads->vw->shape);
     intarray_free(grads->vw->shape);
@@ -857,7 +861,9 @@ void _matmul_backwards(tensor *self) {
     tensor_free(grads);
     tensor_free(mm);
     tensor_free(grads_t);
-    tensor_free(sum_grads);
+    if (batched) {
+      tensor_free(sum_grads);
+    }
     tensor_free(self->parents[0]->grads);
     self->parents[0]->grads = acc_grads;
   }
@@ -894,7 +900,12 @@ tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads) {
   assert(as == bs || as == 1 ||
          bs == 1 && "Tensors don't have correct batch size");
 
-  intarray *new_shape = intarray_build(3, max(as, bs), ah, bw);
+  intarray *new_shape;
+  if (asize == 3 || bsize == 3) {
+    new_shape = intarray_build(3, max(as, bs), ah, bw);
+  } else {
+    new_shape = intarray_build(2, ah, bw);
+  }
 
   tensor **parents = NULL;
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
