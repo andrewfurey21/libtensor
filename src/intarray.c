@@ -65,7 +65,7 @@ intarray* intarray_copy(intarray* a) {
     intarray* copy = (intarray*)malloc(sizeof(intarray));
     copy->size = a->size;
     copy->items = (int32_t*)malloc(sizeof(int32_t) * copy->size);
-    for (uint32_t i = 0; i < MAX_ITEMS || i < copy->size; i++) {
+    for (uint32_t i = 0; i < MAX_ITEMS && i < copy->size; i++) {
         copy->items[i] = a->items[i];
     }
     return copy;

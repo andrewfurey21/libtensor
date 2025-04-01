@@ -568,6 +568,7 @@ tensor *tensor_expand(tensor *input, uint64_t axis, uint64_t factor,
   }
 
   intarray_free(new_shape);
+  intarray_free(expanded_index);
   return setup_tensor(vw, data, requires_grad, parents, EXPAND,
                       _expand_backwards);
 }
