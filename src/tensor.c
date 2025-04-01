@@ -922,7 +922,7 @@ tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads) {
 
   intarray *oi = intarray_zeros(3);
 
-  for (int batch = 0; batch < bs; batch++) {
+  for (int batch = 0; batch < max(as, bs); batch++) {
     oi->items[0] = batch;
 
     ai->items[0] = min(batch, as - 1);

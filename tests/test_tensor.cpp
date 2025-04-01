@@ -951,16 +951,23 @@ TEST(Tensor, MaxPool2d5x5) {
 }
 
 TEST(Tensor, Matmul) {
-  intarray *shape1 = intarray_build(2, 2, 5);
-  float buffer1[] = {14.00, 16.0,  37.04, 31.95, 26.4,
-                     -14.9, -42.1, -7.6,  20.62, 17.15};
+  intarray *shape1 = intarray_build(3, 2, 2, 5);
+  float buffer1[] = {
+    14.00, 16.0,  37.04, 31.95, 26.4,
+                     -14.9, -42.1, -7.6,  20.62, 17.15,
+    14.00, 16.0,  37.04, 31.95, 26.4,
+                     -14.9, -42.1, -7.6,  20.62, 17.15
+  };
 
-  intarray *shape2 = intarray_build(3, 1, 5, 3);
+  intarray *shape2 = intarray_build(2, 5, 3);
   float buffer2[] = {14.02, 16.03, 37.04, 31.94, 26.47,  -14.9, -42.6, -7.63,
                      20.62, 17.1,  15.82, -46.5, -22.18, 36.5,  -44.1};
 
-  intarray *output_shape = intarray_build(3, 1, 2, 3);
+  intarray *output_shape = intarray_build(3, 2, 2, 3);
   float correct_output[] = {
+      -909.790894,  1834.373779, -1605.990234,
+      -1257.596802, -343.062622, -1796.463013,
+
       -909.790894,  1834.373779, -1605.990234,
       -1257.596802, -343.062622, -1796.463013,
   };
