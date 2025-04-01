@@ -4,7 +4,7 @@
 
 Zero-dependency tensor library with automatic differentiation for deep learning.
 
-Does need GoogleTest for testing though.
+Does need GoogleTest for to run tests though.
 
 ## features
 
@@ -12,8 +12,8 @@ Does need GoogleTest for testing though.
 - [x] backwards mode autodiff
 - [x] ops
     - [x] add/sub, mul
-    - [x] square, sqrt, log, exp
-    - [x] reshape, flatten (just a reshape)
+    - [x] neg, square, sqrt, log, exp
+    - [x] reshape, flatten
     - [x] sum/expand along axis
     - [x] relu
     - [x] matmul
@@ -59,7 +59,7 @@ int main(void) {
 
 ## future ideas
 
-- broadcasting
+- broadcasting, in place ops, reduce mallocs by reusing allocs. vectorize/gpu. minimize/optimize cache usage.
 - ggml kind of context? lazy setup tensors. no mallocs during inference/training
 - groups, stride, dilation, padding to maxpool + conv. Figure out how im2col works, and how tinygrad does it's convolutions
 - more functions: permute, pad, batchnorm, attention, etc.

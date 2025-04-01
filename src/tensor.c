@@ -286,9 +286,6 @@ tensor *tensor_mul(tensor *a, tensor *b, bool track_grads) {
 }
 
 void _sum_backwards(tensor *self) {
-  if (!self->parents[0]->requires_grad) {
-    return;
-  }
   intarray *unit_shape = intarray_build(1, 1);
 
   intarray *self_shape = self->vw->shape;
@@ -320,12 +317,12 @@ void _sum_backwards(tensor *self) {
     for (uint64_t i = 0; i < self->grads->data->size; i++) {
       // expanding
       for (uint64_t j = 0; j < along_axis; j++) {
-        intarray *current_grads = intarray_copy(current);
-        current_grads->items[expand_axis] = 0;
-        float num = tensor_getindex(self->grads, current_grads);
+        int save = current->items[expand_axis];
+        current->items[expand_axis] = 0;
+        float num = tensor_getindex(self->grads, current);
+        current->items[expand_axis] = save;
         tensor_setindex(expanded_grads, current, num);
         current->items[expand_axis]++;
-        intarray_free(current_grads);
       }
 
       current->items[expand_axis] = 0;
@@ -343,6 +340,7 @@ void _sum_backwards(tensor *self) {
       }
     }
 
+    intarray_free(current);
     tensor *acc_grads =
         tensor_add(self->parents[0]->grads, expanded_grads, false);
     tensor_free(self->parents[0]->grads);
@@ -405,6 +403,7 @@ tensor *tensor_sum(tensor *input, int axis, bool track_grads) {
         break;
       }
     }
+    intarray_free(current);
   }
 
   intarray_free(new_shape);
@@ -457,6 +456,7 @@ void _reshape_backwards(tensor *self) {
       tensor_reshape(self->grads, self->parents[0]->vw->shape, false);
   tensor *acc_grads = tensor_add(grads, self->parents[0]->grads, false);
   tensor_free(grads);
+  tensor_free(self->parents[0]->grads);
   self->parents[0]->grads = acc_grads;
 }
 
@@ -487,6 +487,7 @@ void _expand_backwards(tensor *self) {
       break;
     }
   }
+  intarray_free(div);
   assert(expanded_axis != -1 &&
          "Did not find an expanded axis from self->vw->shape");
 
@@ -517,6 +518,7 @@ void _expand_backwards(tensor *self) {
       break;
     }
   }
+  intarray_free(current);
 }
 
 // can expand axis where dim>=1
@@ -574,9 +576,6 @@ tensor *tensor_expand(tensor *input, uint64_t axis, uint64_t factor,
 }
 
 void _neg_backwards(tensor *self) {
-  if (!self->parents[0]->requires_grad) {
-    return;
-  }
   tensor *grads = tensor_fill(self->vw->shape, -1.0f, false);
   tensor *mul_grads = tensor_mul(grads, self->grads, false);
   tensor *acc_grads = tensor_add(mul_grads, self->parents[0]->grads, false);
@@ -694,6 +693,8 @@ void _maxpool2d_backwards(tensor *self) {
   tensor *accumulated_grads =
       tensor_add(self->parents[0]->grads, expanded_by_pooled_grads, false);
   tensor_free(expanded_self_grad);
+  tensor_free(expanded_by_pooled_grads);
+  tensor_free(self->parents[0]->grads);
   tensor_free(pooled_grads);
   self->parents[0]->grads = accumulated_grads;
 }
@@ -875,6 +876,7 @@ void _matmul_backwards(tensor *self) {
     tensor *grads = tensor_matmul(w_t, self->grads, false);
     tensor *acc_grads = tensor_add(grads, self->parents[1]->grads, false);
     tensor_free(grads);
+    tensor_free(w_t);
     tensor_free(self->parents[1]->grads);
     self->parents[1]->grads = acc_grads;
   }
@@ -1170,6 +1172,7 @@ void _square_backwards(tensor *self) {
   tensor_free(self->parents[0]->grads);
   tensor_free(twos);
   tensor_free(grads);
+  tensor_free(mul_self_grads);
   self->parents[0]->grads = acc_grads;
 }
 

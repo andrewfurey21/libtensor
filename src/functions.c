@@ -14,6 +14,7 @@ tensor *flatten(tensor *input, int start_dim) {
   }
   new_shape->items[start_dim] = end;
   tensor *flattened = tensor_reshape(input, new_shape, input->requires_grad);
+  intarray_free(new_shape);
   return flattened;
 }
 

@@ -30,7 +30,6 @@ graph* graph_build(tensor* x) {
     graph* net = (graph*)malloc(sizeof(graph));
     net->nodes = (tensor**)malloc(sizeof(tensor*)*MAX_NODES);
     net->size = 0;
-    net->training = true;
     topo_sort(net, x);
     return net;
 }
@@ -39,18 +38,17 @@ void graph_free(graph* net) {
     for (size_t i = 0; i < net->size; i++) {
         tensor_free(net->nodes[i]);
     }
+    free(net->nodes);
     free(net);
 }
 
 void graph_zeroed(graph* net) {
-    if (!net->training) return;
     for (uint32_t i = 0; i < net->size; i++) {
         tensor_to_zeros(net->nodes[i]->grads);
     }
 }
 
 void graph_backprop(graph* net) {
-    if (!net->training) return;
     tensor* current = net->nodes[net->size-1];
     assert(intarray_prod(current->vw->shape) == 1 && "Last tensor must be scalar");
     assert(current->requires_grad && "Can't do backprop on tensor without grads");

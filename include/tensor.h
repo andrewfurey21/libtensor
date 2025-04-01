@@ -172,7 +172,6 @@ tensor *sparse_categorical_cross_entropy(tensor *input, tensor *Y);
 typedef struct {
   struct tensor **nodes;
   size_t size;
-  bool training;
 } graph;
 
 graph *graph_build(tensor *x);

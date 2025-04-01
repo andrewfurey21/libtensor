@@ -120,6 +120,34 @@ typedef struct {
   tensor *linear_layer_2;
 } mnist_cnn;
 
+void setup_mnist_model(mnist_cnn* model) {
+  intarray *conv_layer_1_shape = intarray_build(4, 32, 1, 3, 3);
+  model->conv_layer_1 = tensor_conv_init(conv_layer_1_shape, 1, 3, true);
+
+  intarray *conv_layer_2_shape = intarray_build(4, 64, 32, 3, 3);
+  model->conv_layer_2 = tensor_conv_init(conv_layer_2_shape, 32, 3, true);
+
+  intarray *linear_layer_1_shape = intarray_build(2, 128, 9216);
+  model->linear_layer_1 = tensor_linear_init(linear_layer_1_shape, 9216,
+  true);
+
+  intarray *linear_layer_2_shape = intarray_build(2, 10, 128);
+  model->linear_layer_2 = tensor_linear_init(linear_layer_2_shape, 128,
+  true);
+
+  intarray_free(conv_layer_1_shape);
+  intarray_free(conv_layer_2_shape);
+  intarray_free(linear_layer_1_shape);
+  intarray_free(linear_layer_2_shape);
+}
+
+void free_mnist_model(mnist_cnn* model) {
+  tensor_free(model->conv_layer_1);
+  tensor_free(model->conv_layer_2);
+  tensor_free(model->linear_layer_1);
+  tensor_free(model->linear_layer_2);
+}
+
 int main(void) {
   srand(time(NULL));
   int batch_size = envvar("BS", 1);
@@ -135,46 +163,38 @@ int main(void) {
   display_mnist_image(input_batch, output_batch, NULL);
 
   mnist_cnn model;
-
-  intarray *conv_layer_1_shape = intarray_build(4, 32, 1, 3, 3);
-  model.conv_layer_1 = tensor_conv_init(conv_layer_1_shape, 1, 3, true);
-
-  intarray *conv_layer_2_shape = intarray_build(4, 64, 32, 3, 3);
-  model.conv_layer_2 = tensor_conv_init(conv_layer_2_shape, 32, 3, true);
-
-  intarray *linear_layer_1_shape = intarray_build(2, 128, 9216);
-  model.linear_layer_1 = tensor_linear_init(linear_layer_1_shape, 9216, true);
-
-  intarray *linear_layer_2_shape = intarray_build(2, 10, 128);
-  model.linear_layer_2 = tensor_linear_init(linear_layer_2_shape, 128, true);
-
-  // training 
+  setup_mnist_model(&model);
+  // free_mnist_model(&model);
 
   tensor *l1 = tensor_conv2d(input_batch, model.conv_layer_1, true);
   tensor *l1_activations = tensor_relu(l1, true);
- 
+
   tensor *l2 = tensor_conv2d(l1_activations, model.conv_layer_2, true);
   tensor *l2_activations = tensor_relu(l2, true);
- 
+
   tensor *maxpool = tensor_maxpool2d(l2_activations, 2, true);
   tensor *flatteneded_maxpool = flatten(maxpool, 1);
+
   intarray *new_shape = intarray_build(3, batch_size, 9216, 1);
   tensor *l3_input = tensor_reshape(flatteneded_maxpool, new_shape, true);
-  
+
   tensor *l3 = tensor_matmul(model.linear_layer_1, l3_input, true);
   tensor *l3_activations = tensor_relu(l3, true);
-  
+
   tensor *l4 = tensor_matmul(model.linear_layer_2, l3_activations, true);
   tensor *logits = flatten(l4, 1);
 
   tensor *loss = tensor_sum(logits, -1, true);
 
-  intarray* unit_shape = intarray_build(1, 1);
-  tensor *scalar_loss = tensor_reshape(loss, unit_shape, true);
-
-  graph* network = graph_build(scalar_loss);
+  graph* network = graph_build(loss);
   graph_zeroed(network);
   graph_backprop(network);
+  graph_print(network, false, false);
+
 
   graph_free(network);
+  intarray_free(input_batch_shape);
+  tensor_free(input_batch);
+  intarray_free(output_batch_shape);
+  tensor_free(output_batch);
 }
