@@ -123,6 +123,14 @@ void tensor_to_n(struct tensor *input, float n) {
   }
 }
 
+void tensor_copy_buffer(tensor *dest, tensor *src) {
+  assert(dest->data->size == src->data->size);
+  for (int i = 0; i < dest->data->size; i++) {
+    float value = storage_getitem(src->data, i);
+    storage_setitem(dest->data, i, value);
+  }
+}
+
 void tensor_print(tensor *input, bool show_buffer, bool show_grads) {
   if (!input) {
     printf("values: (null)\n");
