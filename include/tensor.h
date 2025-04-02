@@ -116,6 +116,7 @@ tensor *tensor_uniformint(intarray *shape, float min, float max,
 tensor *tensor_copy(tensor *original, bool requires_grad);
 void tensor_to_zeros(tensor *input);
 void tensor_to_n(tensor *input, float n);
+void tensor_copy_buffer(tensor *dest, tensor *src);
 void tensor_print(tensor *input, bool show_buffer, bool show_grads);
 void tensor_free(tensor *input);
 bool tensor_equal(tensor *a, tensor *b, float rtol, float atol);
@@ -165,10 +166,11 @@ void _reciprocal_backwards(tensor *self);
 tensor *flatten(tensor *input, int start_dim);
 tensor *mean(tensor *input, int axis);
 tensor *variance(tensor *input, int axis, int correction);
-tensor *sparse_categorical_cross_entropy(tensor *input, tensor *Y);
+tensor *one_hot_encode(tensor *batch, int size);
+tensor *cross_entropy(tensor *input, tensor *Y);
+tensor *log_softmax(tensor *input);
 
 // computational graph
-
 typedef struct {
   struct tensor **nodes;
   size_t size;
@@ -181,16 +183,7 @@ void graph_backprop(graph *net);
 void graph_print(graph *net, bool no_buffer, bool show_grads);
 
 // nn
-typedef struct {
-  float learning_rate;
-} toptimizer_params;
-
-typedef struct optimizer optimizer;
-struct optimizer {
-  graph *net;
-  toptimizer_params *opt_params;
-  void (*step)(optimizer *optim);
-};
+void sgd_step(graph *network, float learning_rate);
 
 // helpers
 int randi(int min, int max);
