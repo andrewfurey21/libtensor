@@ -1,5 +1,6 @@
 #include "../include/tensor.h"
 #include "assert.h"
+#include "math.h"
 
 tensor *flatten(tensor *input, int start_dim) {
   assert(start_dim >= 0 && start_dim < input->vw->shape->size);
@@ -26,7 +27,7 @@ tensor *mean(tensor *input, int axis) {
     size = input->vw->shape->items[axis];
   }
   tensor *summed = tensor_sum(input, axis, input->requires_grad);
-  tensor *div = tensor_fill(summed->vw->shape, 1.0f / size, true);
+  tensor *div = tensor_fill(summed->vw->shape, 1.0f / size, false);
   return tensor_mul(summed, div, input->requires_grad);
 }
 
@@ -46,41 +47,54 @@ tensor *variance(tensor *input, int axis, int correction) {
   return tensor_mul(sum, number, input->requires_grad);
 }
 
-// torch gives out if out of bounds, tinygrad doesnt.
-// we give out.
-tensor *sparse_categorical_cross_entropy(tensor *input, tensor *Y) {
-  assert(Y->vw->shape->size == 1);
-
-  tensor *one_hot_y = tensor_zeros(input->vw->shape, false);
-  for (int i = 0; i < Y->vw->shape->items[0]; i++) {
-    int position = storage_getitem(Y->data, i);
-    assert(position >= 0 && position < input->vw->shape->items[1]);
-    int index = i * input->vw->shape->items[1] + position;
+tensor *one_hot_encode(tensor *batch, int size) {
+  int batch_size = batch->vw->shape->items[0];
+  intarray *shape = intarray_build(2, batch_size, size);
+  tensor *one_hot_y = tensor_zeros(shape, false);
+  for (int i = 0; i < batch_size; i++) {
+    int position = storage_getitem(batch->data, i);
+    assert(position >= 0 && position < size);
+    int index = i * size + position;
     storage_setitem(one_hot_y->data, index, 1);
   }
-
-  tensor *guesses = tensor_mul(input, one_hot_y, input->requires_grad);
-  tensor *no_zeros = tensor_sum(guesses, -1, input->requires_grad);
-
-  tensor *exp_all = tensor_exp(input, input->requires_grad);
-  tensor *sum_all = tensor_sum(exp_all, -1, input->requires_grad);
-  tensor *log_sum_all = tensor_log(sum_all, input->requires_grad);
-
-  tensor *sub = tensor_sub(log_sum_all, no_zeros, input->requires_grad);
-  return mean(sub, -1);
+  return one_hot_y;
 }
 
-// takes a vector! (1, n)
+tensor *cross_entropy(tensor *log_probs, tensor *Y) {
+  // tensor* log_probs = log_softmax(input);
+  tensor *mul_true = tensor_mul(log_probs, Y, log_probs->requires_grad);
+  tensor *sum = tensor_sum(mul_true, 1, log_probs->requires_grad);
+  tensor *reduction = mean(sum, -1);
+  return tensor_neg(reduction, log_probs->requires_grad);
+}
+
+tensor *_max(tensor *input) {
+  float max_value = -INFINITY;
+  for (int i = 0; i < input->data->size; i++) {
+    float current = storage_getitem(input->data, i);
+    if (max_value < current) {
+      max_value = current;
+    }
+  }
+  return tensor_fill(input->vw->shape, max_value, false);
+}
+
+// takes a matrix (n, m)
+// softmax(x) = softmax(x+c) so cool! now numerically stable
 tensor *log_softmax(tensor *input) {
-  tensor *exp_input = tensor_exp(input, input->requires_grad);
-  tensor *sum_exp_input = tensor_sum(exp_input, -1, input->requires_grad);
+  tensor *max = _max(input);
+  tensor *subbed = tensor_sub(input, max, input->requires_grad);
+  tensor *exp_input = tensor_exp(subbed, input->requires_grad);
+  tensor *sum_exp_input = tensor_sum(exp_input, 1, input->requires_grad);
+
+  // tensor *epsilon = tensor_fill(sum_exp_input->vw->shape, 1e-12, false);
+  // tensor *safe_to_log =
+  //     tensor_add(epsilon, sum_exp_input, input->requires_grad);
+  // tensor *log_sum_exp_input = tensor_log(safe_to_log, input->requires_grad);
   tensor *log_sum_exp_input = tensor_log(sum_exp_input, input->requires_grad);
-  tensor *expanded = tensor_expand(log_sum_exp_input, 0, input->data->size,
-                                   input->requires_grad);
-  intarray *new_shape =
-      intarray_build(1, input->vw->shape->items[1], input->requires_grad);
-  tensor *reshaped_input =
-      tensor_reshape(input, new_shape, input->requires_grad);
-  intarray_free(new_shape);
-  return tensor_sub(reshaped_input, expanded, input->requires_grad);
+
+  int to_expand = input->vw->shape->items[1];
+  tensor *expanded =
+      tensor_expand(log_sum_exp_input, 1, to_expand, input->requires_grad);
+  return tensor_sub(subbed, expanded, input->requires_grad);
 }
