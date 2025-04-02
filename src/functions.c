@@ -87,7 +87,7 @@ tensor *log_softmax(tensor *input) {
   tensor *exp_input = tensor_exp(subbed, input->requires_grad);
   tensor *sum_exp_input = tensor_sum(exp_input, 1, input->requires_grad);
 
-  // tensor *epsilon = tensor_fill(sum_exp_input->vw->shape, 1e-12, false);
+  // tensor *epsilon = tensor_fill(sum_exp_input->vw->shape, 1e-12, false); // should have grads?
   // tensor *safe_to_log =
   //     tensor_add(epsilon, sum_exp_input, input->requires_grad);
   // tensor *log_sum_exp_input = tensor_log(safe_to_log, input->requires_grad);

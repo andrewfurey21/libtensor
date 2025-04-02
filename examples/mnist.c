@@ -120,7 +120,7 @@ typedef struct {
   tensor *linear_layer_2;
 } mnist_cnn;
 
-void setup_mnist_model(mnist_cnn* model) {
+void setup_mnist_model(mnist_cnn *model) {
   intarray *conv_layer_1_shape = intarray_build(4, 32, 1, 3, 3);
   model->conv_layer_1 = tensor_conv_init(conv_layer_1_shape, 1, 3, true);
 
@@ -128,12 +128,10 @@ void setup_mnist_model(mnist_cnn* model) {
   model->conv_layer_2 = tensor_conv_init(conv_layer_2_shape, 32, 3, true);
 
   intarray *linear_layer_1_shape = intarray_build(2, 128, 9216);
-  model->linear_layer_1 = tensor_linear_init(linear_layer_1_shape, 9216,
-  true);
+  model->linear_layer_1 = tensor_linear_init(linear_layer_1_shape, 9216, true);
 
   intarray *linear_layer_2_shape = intarray_build(2, 10, 128);
-  model->linear_layer_2 = tensor_linear_init(linear_layer_2_shape, 128,
-  true);
+  model->linear_layer_2 = tensor_linear_init(linear_layer_2_shape, 128, true);
 
   intarray_free(conv_layer_1_shape);
   intarray_free(conv_layer_2_shape);
@@ -141,60 +139,87 @@ void setup_mnist_model(mnist_cnn* model) {
   intarray_free(linear_layer_2_shape);
 }
 
-void free_mnist_model(mnist_cnn* model) {
+void free_mnist_model(mnist_cnn *model) {
   tensor_free(model->conv_layer_1);
   tensor_free(model->conv_layer_2);
   tensor_free(model->linear_layer_1);
   tensor_free(model->linear_layer_2);
 }
 
-int main(void) {
-  srand(time(NULL));
-  int batch_size = envvar("BS", 1);
-
-  intarray *input_batch_shape = intarray_build(4, batch_size, 1, 28, 28);
-  tensor *input_batch = tensor_zeros(input_batch_shape, false);
-
-  intarray *output_batch_shape = intarray_build(2, batch_size, 1);
-  tensor *output_batch = tensor_zeros(output_batch_shape, false);
-
-  load_mnist_batch(input_batch, output_batch, "../data/mnist_test.csv", 10000,
-                   batch_size);
-  display_mnist_image(input_batch, output_batch, NULL);
-
-  mnist_cnn model;
-  setup_mnist_model(&model);
-  // free_mnist_model(&model);
-
-  tensor *l1 = tensor_conv2d(input_batch, model.conv_layer_1, true);
+tensor *infer_mnist_model(mnist_cnn *model, tensor *input_batch) {
+  int batch_size = input_batch->vw->shape->items[0];
+  tensor *l1 = tensor_conv2d(input_batch, model->conv_layer_1, true);
   tensor *l1_activations = tensor_relu(l1, true);
 
-  tensor *l2 = tensor_conv2d(l1_activations, model.conv_layer_2, true);
+  tensor *l2 = tensor_conv2d(l1_activations, model->conv_layer_2, true);
   tensor *l2_activations = tensor_relu(l2, true);
 
   tensor *maxpool = tensor_maxpool2d(l2_activations, 2, true);
   tensor *flatteneded_maxpool = flatten(maxpool, 1);
 
-  intarray *new_shape = intarray_build(3, batch_size, 9216, 1);
+  const int convs_outputs_flattened =
+      model->conv_layer_2->vw->shape->items[0] * 144;
+  intarray *new_shape =
+      intarray_build(3, batch_size, convs_outputs_flattened, 1);
   tensor *l3_input = tensor_reshape(flatteneded_maxpool, new_shape, true);
+  intarray_free(new_shape);
 
-  tensor *l3 = tensor_matmul(model.linear_layer_1, l3_input, true);
+  tensor *l3 = tensor_matmul(model->linear_layer_1, l3_input, true);
   tensor *l3_activations = tensor_relu(l3, true);
 
-  tensor *l4 = tensor_matmul(model.linear_layer_2, l3_activations, true);
+  tensor *l4 = tensor_matmul(model->linear_layer_2, l3_activations, true);
   tensor *logits = flatten(l4, 1);
 
-  tensor *loss = tensor_sum(logits, -1, true);
+  return logits;
+}
 
-  graph* network = graph_build(loss);
+float train_step_mnist_model(mnist_cnn *model, float learning_rate,
+                             int batch_size, tensor *input_batch,
+                             tensor *output_batch) {
+  tensor *logits = infer_mnist_model(model, input_batch);
+  tensor *log_probs = log_softmax(logits);
+  // tensor_print(logits, true, false);
+  // tensor_print(log_probs, true, false);
+  // tensor_print(output_batch, true, false);
+  tensor *loss = cross_entropy(log_probs, output_batch);
+  float value = storage_getitem(loss->data, 0);
+
+  graph *network = graph_build(loss);
   graph_zeroed(network);
   graph_backprop(network);
-  graph_print(network, false, false);
-
+  sgd_step(network, learning_rate);
 
   graph_free(network);
-  intarray_free(input_batch_shape);
+  return value;
+}
+
+// TODO: after training check accuracy.
+int main(void) {
+  srand(time(NULL));
+  int batch_size = envvar("BS", 1);
+  float learning_rate = 5e-3f;
+
+  intarray *input_batch_shape = intarray_build(4, batch_size, 1, 28, 28);
+  intarray *output_batch_shape = intarray_build(1, batch_size);
+
+  mnist_cnn model;
+  setup_mnist_model(&model);
+
+  // train
+  tensor *input_batch = tensor_zeros(input_batch_shape, false);
+  tensor *output_batch = tensor_zeros(output_batch_shape, false);
+  for (int i = 0; i < 100; i++) {
+    load_mnist_batch(input_batch, output_batch, "../data/mnist_test.csv", 10000,
+                     batch_size);
+    tensor *one_hot_encoded_output = one_hot_encode(output_batch, 10);
+    float loss = train_step_mnist_model(&model, learning_rate, batch_size,
+                                        input_batch, one_hot_encoded_output);
+    printf("Loss: %f\n", loss);
+  }
+
   tensor_free(input_batch);
-  intarray_free(output_batch_shape);
   tensor_free(output_batch);
+  intarray_free(input_batch_shape);
+  intarray_free(output_batch_shape);
+  free_mnist_model(&model);
 }

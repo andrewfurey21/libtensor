@@ -1,22 +1,22 @@
 #include "../include/tensor.h"
 
 int main(void) {
-  intarray *ashape = intarray_build(2, 4, 6); // shape (4, 6)
-  tensor *a = tensor_linspace(ashape, -10, 10, true);
+  intarray* tshape = intarray_build(2, 2, 3);
+  float buffer[] = {-1, 2, -3, 1, -2, 3};
 
-  intarray *bshape = intarray_build(2, 6, 5); // shape (6, 5)
-  tensor *b = tensor_linspace(bshape, -10, 10, true);
+  intarray* yshape = intarray_build(2, 2, 3);
+  float other[] = {0, 1, 0, 0, 0, 1};
 
-  tensor *matmul = tensor_matmul(a, b, true);
-  tensor *sum = tensor_sum(matmul, -1, true);
+  tensor* t = tensor_from_buffer(tshape, buffer, true);
+  tensor* y = tensor_from_buffer(yshape, other, false);
 
-  graph *network = graph_build(sum);
-  graph_zeroed(network);
-  graph_backprop(network);
+  tensor* loss = cross_entropy(t, y);
+  tensor_print(loss, true, false);
 
-  graph_print(network, true, true);
-
-  intarray_free(ashape);
-  intarray_free(bshape);
-  graph_free(network);
+  // graph* network = graph_build(loss);
+  // graph_zeroed(network);
+  // graph_backprop(network);
+  //
+  // tensor_print(loss, true, false);
+  // tensor_print(log_probs, false, true);
 }

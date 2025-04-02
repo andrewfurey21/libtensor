@@ -36,7 +36,10 @@ graph* graph_build(tensor* x) {
 
 void graph_free(graph* net) {
     for (size_t i = 0; i < net->size; i++) {
-        tensor_free(net->nodes[i]);
+        tensor* node = net->nodes[i];
+        if (node->op != NOOP || node->requires_grad) {
+            tensor_free(node);
+        }
     }
     free(net->nodes);
     free(net);
@@ -64,7 +67,6 @@ void graph_backprop(graph* net) {
         current = net->nodes[i];
     }
 }
-
 
 void graph_print(graph* net, bool no_buffer, bool show_grads) {
     for (int i = 0; i < net->size; i++) {
