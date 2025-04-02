@@ -168,6 +168,7 @@ void tensor_free(tensor *input) {
   free(input);
 }
 
+// TODO: infs and nans
 bool tensor_equal(tensor *a, tensor *b, float rtol, float atol) {
   assert(view_equal(a->vw, b->vw));
   for (int i = 0; i < intarray_prod(a->vw->shape); i++) {
@@ -1265,7 +1266,7 @@ tensor *tensor_exp(tensor *input, bool track_grads) {
 void _log_backwards(tensor *self) {
   tensor *copy_input = tensor_zeros(self->parents[0]->vw->shape, false);
   for (int i = 0; i < copy_input->data->size; i++) {
-    float value = 1.0f / storage_getitem(copy_input->data, i);
+    float value = 1.0f / storage_getitem(self->parents[0]->data, i);
     storage_setitem(copy_input->data, i, value);
   }
   tensor *mul = tensor_mul(copy_input, self->grads, false);
