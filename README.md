@@ -1,4 +1,4 @@
-# libtensor
+# newmind
 
 <!--  TODO: Show gif of it solving mnist and generated graph -->
 
@@ -10,17 +10,9 @@ Does need GoogleTest for to run tests though.
 
 - [x] tensor
 - [x] backwards mode autodiff
-- [x] ops
-    - [x] add/sub, mul
-    - [x] neg, square, sqrt, log, exp
-    - [x] reshape, flatten
-    - [x] sum/expand along axis
-    - [x] relu
-    - [x] matmul
-    - [x] max pool
-    - [x] convolutions
-    - [x] cross entropy
 - [ ] sgd optimizer
+- [ ] avx/openmp backend
+- [ ] opencl backend
 
 ## examples
 
