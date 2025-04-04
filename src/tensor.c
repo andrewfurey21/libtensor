@@ -891,8 +891,6 @@ void _matmul_backwards(tensor *self) {
   }
 }
 
-// for now, inputs will be 2d or 3d
-// shouldn't be that hard to generalize
 tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads) {
   int asize = a->vw->shape->size;
   int bsize = b->vw->shape->size;
@@ -913,11 +911,7 @@ tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads) {
          bs == 1 && "Tensors don't have correct batch size");
 
   intarray *new_shape;
-  if (asize == 3 || bsize == 3) {
-    new_shape = intarray_build(3, max(as, bs), ah, bw);
-  } else {
-    new_shape = intarray_build(2, ah, bw);
-  }
+  new_shape = intarray_build(3, max(as, bs), ah, bw);
 
   tensor **parents = NULL;
   bool requires_grad = (a->requires_grad || b->requires_grad) && track_grads;
@@ -952,8 +946,10 @@ tensor *tensor_matmul(tensor *a, tensor *b, bool track_grads) {
           ai->items[2] = i;
           float av = tensor_getindex(a, ai);
           float bv = tensor_getindex(b, bi);
+          // printf("%d. av (%f) * bv(%f) = %f\n", i, av, bv, av*bv);
           sum += av * bv;
         }
+        // printf("final sum: %f\n", sum);
         storage_setindex(data, vw, oi, sum);
       }
     }
@@ -1089,6 +1085,8 @@ void _conv2d_backwards(tensor *self) {
 // bias = false (just use add if you want a bias
 // works only for input=4d, kernels=4d
 // kernel shape: (cout, cin, kernelsize, kernelsize)
+// TODO: change to (cin, cout, ...)
+//
 // input shape: (batch size, cin, hin, win)
 // output shape: (batch size, cout, hout, wout)
 // should add groups

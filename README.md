@@ -1,6 +1,6 @@
 # newmind
 
-<!--  TODO: Show gif of it solving mnist and generated graph -->
+<!--  TODO: Show gif of it solving mnist -->
 
 Zero-dependency tensor library with automatic differentiation for deep learning.
 
@@ -10,7 +10,7 @@ Does need GoogleTest for to run tests though.
 
 - [x] tensor
 - [x] backwards mode autodiff
-- [ ] sgd optimizer
+- [x] optimizers (sgd)
 - [ ] avx/openmp backend
 - [ ] cuda backend
 
@@ -66,3 +66,4 @@ int main(void) {
 - onnx support
 - homomorphic encryption
 - quantization
+- threefry

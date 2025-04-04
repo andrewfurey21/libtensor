@@ -952,12 +952,9 @@ TEST(Tensor, MaxPool2d5x5) {
 
 TEST(Tensor, Matmul) {
   intarray *shape1 = intarray_build(3, 2, 2, 5);
-  float buffer1[] = {
-    14.00, 16.0,  37.04, 31.95, 26.4,
-                     -14.9, -42.1, -7.6,  20.62, 17.15,
-    14.00, 16.0,  37.04, 31.95, 26.4,
-                     -14.9, -42.1, -7.6,  20.62, 17.15
-  };
+  float buffer1[] = {14.00, 16.0,  37.04, 31.95, 26.4,  -14.9, -42.1,
+                     -7.6,  20.62, 17.15, 14.00, 16.0,  37.04, 31.95,
+                     26.4,  -14.9, -42.1, -7.6,  20.62, 17.15};
 
   intarray *shape2 = intarray_build(2, 5, 3);
   float buffer2[] = {14.02, 16.03, 37.04, 31.94, 26.47,  -14.9, -42.6, -7.63,
@@ -977,6 +974,51 @@ TEST(Tensor, Matmul) {
   tensor *tensor2 = tensor_from_buffer(shape2, buffer2, false);
 
   tensor *output = tensor_matmul(tensor1, tensor2, false);
+
+  ASSERT_TRUE(intarray_equal(output->vw->shape, output_shape));
+
+  bool equal = tensor_equal(correct, output, 1e-5, 1e-8);
+
+  EXPECT_TRUE(equal) << "Matmul failed\n";
+  if (HasFailure()) {
+    printf("Expected: \n");
+    tensor_print(correct, true, false);
+    printf("Output: \n");
+    tensor_print(output, true, false);
+  }
+
+  EXPECT_FALSE(output->grads);
+  EXPECT_FALSE(output->requires_grad);
+  EXPECT_FALSE(output->parents);
+  EXPECT_EQ(output->op, MATMUL);
+  EXPECT_EQ(output->_backwards, _matmul_backwards);
+
+  intarray_free(shape1);
+  intarray_free(shape2);
+  intarray_free(output_shape);
+  tensor_free(correct);
+  tensor_free(output);
+  tensor_free(tensor1);
+  tensor_free(tensor2);
+}
+
+TEST(Tensor, Matmul1) {
+  intarray *shape1 = intarray_build(3, 1, 10, 1);
+  tensor *tensor1 = tensor_linspace(shape1, -10, 10, false);
+  intarray *shape2 = intarray_build(2, 3, 10);
+  tensor *tensor2 = tensor_linspace(shape2, -10, 10, false);
+
+  intarray *output_shape = intarray_build(3, 1, 3, 1);
+
+  float correct_output[] = {
+      126.4367523193,
+      126.4367523193,
+      126.4367523193,
+  };
+
+  tensor *correct = tensor_from_buffer(output_shape, correct_output, false);
+
+  tensor *output = tensor_matmul(tensor2, tensor1, false);
 
   ASSERT_TRUE(intarray_equal(output->vw->shape, output_shape));
 

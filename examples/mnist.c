@@ -166,10 +166,8 @@ tensor *infer_mnist_model(mnist_cnn *model, tensor *input_batch) {
 
   tensor *l3 = tensor_matmul(model->linear_layer_1, l3_input, true);
   tensor *l3_activations = tensor_relu(l3, true);
-
   tensor *l4 = tensor_matmul(model->linear_layer_2, l3_activations, true);
   tensor *logits = flatten(l4, 1);
-
   return logits;
 }
 
@@ -178,9 +176,6 @@ float train_step_mnist_model(mnist_cnn *model, float learning_rate,
                              tensor *output_batch) {
   tensor *logits = infer_mnist_model(model, input_batch);
   tensor *log_probs = log_softmax(logits);
-  // tensor_print(logits, true, false);
-  // tensor_print(log_probs, true, false);
-  // tensor_print(output_batch, true, false);
   tensor *loss = cross_entropy(log_probs, output_batch);
   float value = storage_getitem(loss->data, 0);
 
@@ -188,7 +183,6 @@ float train_step_mnist_model(mnist_cnn *model, float learning_rate,
   graph_zeroed(network);
   graph_backprop(network);
   sgd_step(network, learning_rate);
-
   graph_free(network);
   return value;
 }
@@ -196,8 +190,10 @@ float train_step_mnist_model(mnist_cnn *model, float learning_rate,
 // TODO: after training check accuracy.
 int main(void) {
   srand(time(NULL));
-  int batch_size = envvar("BS", 1);
-  float learning_rate = 5e-3f;
+  const int batch_size = envvar("BS", 1);
+  const float learning_rate = 1e-4f;
+  const int steps = 100;
+
 
   intarray *input_batch_shape = intarray_build(4, batch_size, 1, 28, 28);
   intarray *output_batch_shape = intarray_build(1, batch_size);
@@ -208,7 +204,7 @@ int main(void) {
   // train
   tensor *input_batch = tensor_zeros(input_batch_shape, false);
   tensor *output_batch = tensor_zeros(output_batch_shape, false);
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < steps; i++) {
     load_mnist_batch(input_batch, output_batch, "../data/mnist_test.csv", 10000,
                      batch_size);
     tensor *one_hot_encoded_output = one_hot_encode(output_batch, 10);
