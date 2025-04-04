@@ -12,7 +12,7 @@ Does need GoogleTest for to run tests though.
 - [x] backwards mode autodiff
 - [ ] sgd optimizer
 - [ ] avx/openmp backend
-- [ ] opencl backend
+- [ ] cuda backend
 
 ## examples
 

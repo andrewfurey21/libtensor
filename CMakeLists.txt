@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(libtensor)
+project(newmind)
 find_package(GTest REQUIRED)
 include(CTest)
 
@@ -9,16 +9,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 file(GLOB LIB_SOURCES "src/*.c")
 
-add_library(tensor STATIC ${LIB_SOURCES})
+add_library(newmind STATIC ${LIB_SOURCES})
 
-target_include_directories(tensor PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(newmind PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 file(GLOB EXAMPLE_SOURCES "examples/*.c")
 
 foreach(example_source ${EXAMPLE_SOURCES})
     get_filename_component(example_name ${example_source} NAME_WE)
     add_executable(${example_name} ${example_source})
-    target_link_libraries(${example_name} PRIVATE tensor m)
+    target_link_libraries(${example_name} PRIVATE newmind m)
 endforeach()
 
 file(GLOB TEST_SOURCES "tests/*.cpp")
@@ -30,7 +30,7 @@ foreach(test ${TEST_SOURCES})
         PRIVATE 
         GTest::gtest_main
         pthread
-        tensor
+        newmind
         m
     )
     add_test(NAME ${test_name} COMMAND ${test_name})
